@@ -1,0 +1,47 @@
+﻿<UserControl
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	mc:Ignorable="d"
+	x:Class="Tile2"
+	x:Name="UserControl" Width="100" Height="100" Opacity="1">
+	<UserControl.Resources>
+		<Storyboard x:Key="OnMouseEnter1">
+			<DoubleAnimationUsingKeyFrames BeginTime="00:00:00" Storyboard.TargetName="TileSurfaceRct" Storyboard.TargetProperty="(UIElement.Opacity)">
+				<SplineDoubleKeyFrame KeyTime="00:00:00" Value="0"/>
+				<SplineDoubleKeyFrame KeyTime="00:00:00.3000000" Value="0.14"/>
+			</DoubleAnimationUsingKeyFrames>
+		</Storyboard>
+		<Storyboard x:Key="OnMouseLeave1">
+			<DoubleAnimationUsingKeyFrames BeginTime="00:00:00" Storyboard.TargetName="TileSurfaceRct" Storyboard.TargetProperty="(UIElement.Opacity)">
+				<SplineDoubleKeyFrame KeyTime="00:00:00" Value="0.14"/>
+				<SplineDoubleKeyFrame KeyTime="00:00:00.3000000" Value="0"/>
+			</DoubleAnimationUsingKeyFrames>
+		</Storyboard>
+	</UserControl.Resources>
+	<UserControl.Triggers>
+		<EventTrigger RoutedEvent="Mouse.MouseEnter">
+			<BeginStoryboard Storyboard="{StaticResource OnMouseEnter1}"/>
+		</EventTrigger>
+		<EventTrigger RoutedEvent="Mouse.MouseLeave">
+			<BeginStoryboard Storyboard="{StaticResource OnMouseLeave1}" x:Name="OnMouseLeave1_BeginStoryboard"/>
+		</EventTrigger>
+	</UserControl.Triggers>
+
+	<Grid x:Name="LayoutRoot">
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="0*"/>
+			<ColumnDefinition/>
+		</Grid.ColumnDefinitions>
+		<Rectangle x:Name="TileSurfaceRct" Opacity="0" Stroke="White" StrokeThickness="3" Grid.ColumnSpan="2"/>
+		<Rectangle Stroke="Black" x:Name="TileBgrndRct" Opacity="0.6" Grid.ColumnSpan="2" >
+			<Rectangle.Fill>
+				<ImageBrush ImageSource="/KBCO;component/Images/applicationIcons/Transparent Glass.png"/>
+			</Rectangle.Fill>
+		</Rectangle>
+		<TextBlock Margin="13,13,18,34" x:Name="TileTxtBlck" FontSize="10"  Text="Microsoft Visual Web Developer 2010 Express " TextWrapping="Wrap" Grid.ColumnSpan="2" Foreground="White"/>
+		<Image HorizontalAlignment="Left" Margin="10,0,0,10" x:Name="TileIcon" VerticalAlignment="Bottom" Width="35" Height="35" Stretch="Uniform" RenderTransformOrigin="0.667,-0.167" Grid.ColumnSpan="2"/>
+		<Button x:Name="btnRemoveFavorits" Content="DEL -" HorizontalAlignment="Left" Margin="61,79,0,0" VerticalAlignment="Top" Width="35" Height="17" BorderBrush="White" Background="{x:Null}" FontSize="9" Foreground="White" RenderTransformOrigin="0.429,-0.882" Grid.ColumnSpan="2"/>
+	</Grid>
+</UserControl>

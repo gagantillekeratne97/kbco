@@ -1,0 +1,425 @@
+﻿<UserControl
+	xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+	xmlns:ed="http://schemas.microsoft.com/expression/2010/drawing"
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:Microsoft_Windows_Themes="clr-namespace:Microsoft.Windows.Themes;assembly=PresentationFramework.Aero" mc:Ignorable="d"
+	x:Class="Login"
+	x:Name="Login"
+	Background="{x:Null}" Width="1366" Height="760">
+	<UserControl.Resources>
+		<Style x:Key="ButtonFocusVisual">
+			<Setter Property="Control.Template">
+				<Setter.Value>
+					<ControlTemplate>
+						<Rectangle Margin="2" SnapsToDevicePixels="true" Stroke="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" StrokeThickness="1" StrokeDashArray="1 2"/>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+		<LinearGradientBrush x:Key="ButtonNormalBackground" EndPoint="0,1" StartPoint="0,0">
+			<GradientStop Color="#F3F3F3" Offset="0"/>
+			<GradientStop Color="#EBEBEB" Offset="0.5"/>
+			<GradientStop Color="#DDDDDD" Offset="0.5"/>
+			<GradientStop Color="#CDCDCD" Offset="1"/>
+		</LinearGradientBrush>
+		<SolidColorBrush x:Key="ButtonNormalBorder" Color="#FF707070"/>
+		<Style x:Key="closeBtnStyle" TargetType="{x:Type Button}">
+			<Setter Property="FocusVisualStyle" Value="{StaticResource ButtonFocusVisual}"/>
+			<Setter Property="Background" Value="{StaticResource ButtonNormalBackground}"/>
+			<Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBorder}"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Padding" Value="1"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type Button}">
+						<ControlTemplate.Resources>
+							<Storyboard x:Key="btnCloseMouseOver">
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[0].(GradientStop.Color)" Storyboard.TargetName="fillRect" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFEF8C8C"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FFDA6262"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[1].(GradientStop.Color)" Storyboard.TargetName="fillRect" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFE29F9F"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FFF16F6F"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[2].(GradientStop.Color)" Storyboard.TargetName="fillRect" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFB83535"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF970202"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(SolidColorBrush.Color)" Storyboard.TargetName="shineRect" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0" Value="#26FFFFFF"/>
+								</ColorAnimationUsingKeyFrames>
+								<DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)" Storyboard.TargetName="fillRect">
+									<EasingDoubleKeyFrame KeyTime="0" Value="1"/>
+								</DoubleAnimationUsingKeyFrames>
+								<DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)" Storyboard.TargetName="fillRect">
+									<EasingDoubleKeyFrame KeyTime="0" Value="16"/>
+								</DoubleAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Color)" Storyboard.TargetName="fillRect">
+									<EasingColorKeyFrame KeyTime="0" Value="#FFDE5B5B"/>
+								</ColorAnimationUsingKeyFrames>
+							</Storyboard>
+						</ControlTemplate.Resources>
+						<Grid Height="26" Margin="0" HorizontalAlignment="Center" Width="50" VerticalAlignment="Center">
+							<Rectangle x:Name="fillRect" RadiusY="4.5" RadiusX="4.5" Stroke="Black" StrokeThickness="1" Height="26" Margin="0" VerticalAlignment="Top">
+								<Rectangle.Effect>
+									<DropShadowEffect BlurRadius="4" ShadowDepth="0"/>
+								</Rectangle.Effect>
+								<Rectangle.Fill>
+									<LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+										<GradientStop Color="#FFDA6262" Offset="0"/>
+										<GradientStop Color="#FFF16F6F" Offset="1"/>
+										<GradientStop Color="#FF970202" Offset="0.5"/>
+									</LinearGradientBrush>
+								</Rectangle.Fill>
+							</Rectangle>
+							<Rectangle x:Name="shineRect" Fill="#1AFFFFFF" RadiusY="7" RadiusX="7" Stroke="{x:Null}" StrokeThickness="0" Margin="0,0,0,10" Height="15"/>
+							<Image Margin="0" Source="Images/applicationIcons/PowerIcon.png" Stretch="Fill" Height="18" Width="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+						</Grid>
+						<ControlTemplate.Triggers>
+							<EventTrigger RoutedEvent="Mouse.MouseEnter">
+								<BeginStoryboard x:Name="btnCloseMouseOver_BeginStoryboard" Storyboard="{StaticResource btnCloseMouseOver}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Mouse.MouseLeave">
+								<StopStoryboard BeginStoryboardName="btnCloseMouseOver_BeginStoryboard"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="ButtonBase.Click">
+								<StopStoryboard BeginStoryboardName="btnCloseMouseOver_BeginStoryboard1"/>
+								<StopStoryboard BeginStoryboardName="btnCloseMouseOver_BeginStoryboard"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Keyboard.GotKeyboardFocus">
+								<BeginStoryboard x:Name="btnCloseMouseOver_BeginStoryboard1" Storyboard="{StaticResource btnCloseMouseOver}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Keyboard.LostKeyboardFocus">
+								<StopStoryboard BeginStoryboardName="btnCloseMouseOver_BeginStoryboard1"/>
+							</EventTrigger>
+							<Trigger Property="IsEnabled" Value="false">
+								<Setter Property="Foreground" Value="#ADADAD"/>
+							</Trigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+		<Style x:Key="switchUserBtn" TargetType="{x:Type Button}">
+			<Setter Property="FocusVisualStyle" Value="{StaticResource ButtonFocusVisual}"/>
+			<Setter Property="Background" Value="{StaticResource ButtonNormalBackground}"/>
+			<Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBorder}"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Padding" Value="1"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type Button}">
+						<ControlTemplate.Resources>
+							<Storyboard x:Key="loginBtnSB">
+								<!--<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[0].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFB6CDFB"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF89ACF1"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[1].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFB0C8F7"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF94B8FF"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[2].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FF758AB2"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF1E62E9"/>
+								</ColorAnimationUsingKeyFrames>-->
+								<DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)" Storyboard.TargetName="grid">
+									<EasingDoubleKeyFrame KeyTime="0" Value="1"/>
+								</DoubleAnimationUsingKeyFrames>
+								<DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)" Storyboard.TargetName="grid">
+									<EasingDoubleKeyFrame KeyTime="0" Value="18"/>
+								</DoubleAnimationUsingKeyFrames>
+							</Storyboard>
+						</ControlTemplate.Resources>
+						<Grid x:Name="grid">
+							<Grid.Effect>
+								<DropShadowEffect Color="#FF348AE9" BlurRadius="0" ShadowDepth="0"/>
+							</Grid.Effect>
+							<Rectangle x:Name="rectangle" Stroke="Black" RadiusY="4.5" RadiusX="4.5" Opacity="1">
+								<Rectangle.Fill>
+									<LinearGradientBrush EndPoint="0.5,1" MappingMode="RelativeToBoundingBox" StartPoint="0.5,0">
+										<GradientStop Color="#FF89ACF1" Offset="0"/>
+										<GradientStop Color="#FF94B8FF" Offset="1"/>
+										<GradientStop Color="#FF1E62E9" Offset="0.4"/>
+									</LinearGradientBrush>
+								</Rectangle.Fill>
+							</Rectangle>
+							<Rectangle RadiusY="4.5" RadiusX="4.5" Stroke="{x:Null}" Fill="#19FFFFFF" Margin="0,0,0,17" Opacity="1"/>
+							<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+						</Grid>
+						<ControlTemplate.Triggers>
+							<EventTrigger RoutedEvent="Mouse.MouseEnter">
+								<BeginStoryboard x:Name="loginBtnSB_BeginStoryboard" Storyboard="{StaticResource loginBtnSB}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Mouse.MouseLeave">
+								<StopStoryboard BeginStoryboardName="loginBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+							<Trigger Property="IsKeyboardFocused" Value="True"/>
+							<EventTrigger RoutedEvent="FrameworkElement.Loaded"/>
+							<Trigger Property="ToggleButton.IsChecked" Value="true"/>
+							<Trigger Property="IsEnabled" Value="false">
+								<Setter Property="Foreground" Value="#ADADAD"/>
+							</Trigger>
+							<EventTrigger RoutedEvent="Keyboard.GotKeyboardFocus">
+								<BeginStoryboard x:Name="loginBtnSB_BeginStoryboard1" Storyboard="{StaticResource loginBtnSB}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Keyboard.LostKeyboardFocus">
+								<StopStoryboard BeginStoryboardName="loginBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+
+		<Style x:Key="profileInfoStackPanel" TargetType="StackPanel">
+			<Setter Property="Width" Value="170"/>
+			<Setter Property="Height" Value="170"/>
+			<Setter Property="HorizontalAlignment" Value="Center"/>
+			<Setter Property="Margin" Value="5,0,0,0"/>
+			<Setter Property="Cursor" Value="Hand"/>
+		</Style>
+
+		<Style x:Key="userProfBorders" TargetType="Border">
+			<Setter Property="BorderBrush" Value="Black"/>
+			<Setter Property="Background" Value="Transparent"/>
+			<Setter Property="BorderThickness" Value="2"/>
+			<Setter Property="CornerRadius" Value="5"/>
+			<Setter Property="HorizontalAlignment" Value="Center"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+			<Setter Property="Height" Value="100"/>
+			<Setter Property="Width" Value="130"/>
+			<Setter Property="Margin" Value="10,0,0,0"/>
+		</Style>
+
+		<Style x:Key="userProfLabels" TargetType="TextBlock">
+			<Setter Property="Foreground" Value="WhiteSmoke"/>
+			<Setter Property="HorizontalAlignment" Value="Center"/>
+			<Setter Property="VerticalAlignment" Value="Center"/>
+		</Style>
+		<Style x:Key="advanceBtnStyle" TargetType="{x:Type Button}">
+			<Setter Property="FocusVisualStyle" Value="{StaticResource ButtonFocusVisual}"/>
+			<Setter Property="Background" Value="{StaticResource ButtonNormalBackground}"/>
+			<Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBorder}"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Padding" Value="1"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type Button}">
+						<ControlTemplate.Resources>
+							<Storyboard x:Key="advanceBtnSB">
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[0].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFB8D4F9"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF94BBEF"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[1].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFAED6FB"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF64A3DE"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[2].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FF4E78A7"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF0A4B91"/>
+								</ColorAnimationUsingKeyFrames>
+								<DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)" Storyboard.TargetName="rectangle">
+									<EasingDoubleKeyFrame KeyTime="0" Value="2"/>
+								</DoubleAnimationUsingKeyFrames>
+								<DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)" Storyboard.TargetName="rectangle">
+									<EasingDoubleKeyFrame KeyTime="0" Value="20"/>
+								</DoubleAnimationUsingKeyFrames>
+							</Storyboard>
+						</ControlTemplate.Resources>
+						<Grid Height="29" Margin="0">
+							<Rectangle x:Name="rectangle" RadiusY="4.5" RadiusX="4.5" Stroke="Black" StrokeThickness="1">
+								<Rectangle.Effect>
+									<DropShadowEffect BlurRadius="0" Color="#FF425DB2" ShadowDepth="0"/>
+								</Rectangle.Effect>
+								<Rectangle.Fill>
+									<LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+										<GradientStop Color="#FF94BBEF" Offset="0"/>
+										<GradientStop Color="#FF64A3DE" Offset="1"/>
+										<GradientStop Color="#FF0A4B91" Offset="0.496"/>
+									</LinearGradientBrush>
+								</Rectangle.Fill>
+							</Rectangle>
+							<Rectangle Fill="#19FFFFFF" RadiusY="7" RadiusX="7" Stroke="{x:Null}" StrokeThickness="1" Height="14" VerticalAlignment="Top"/>
+							<Image HorizontalAlignment="Right" Source="Images/applicationIcons/advanceSettings.png" VerticalAlignment="Bottom" Height="22.48" Width="21.73" Margin="0,0,2,3"/>
+							<ContentPresenter Content="Advance" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,18,0"/>
+						</Grid>
+						<ControlTemplate.Triggers>
+							<EventTrigger RoutedEvent="Mouse.MouseEnter">
+								<BeginStoryboard x:Name="advanceBtnSB_BeginStoryboard" Storyboard="{StaticResource advanceBtnSB}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Mouse.MouseLeave">
+								<StopStoryboard BeginStoryboardName="advanceBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Keyboard.GotKeyboardFocus">
+								<BeginStoryboard x:Name="advanceBtnSB_BeginStoryboard1" Storyboard="{StaticResource advanceBtnSB}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Keyboard.LostKeyboardFocus">
+								<StopStoryboard BeginStoryboardName="advanceBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+							<Trigger Property="IsKeyboardFocused" Value="True"/>
+							<Trigger Property="ToggleButton.IsChecked" Value="true"/>
+							<Trigger Property="IsEnabled" Value="false">
+								<Setter Property="Foreground" Value="#ADADAD"/>
+							</Trigger>
+							<EventTrigger RoutedEvent="ButtonBase.Click">
+								<StopStoryboard BeginStoryboardName="advanceBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+		<Style x:Key="btnLoginStyle" TargetType="{x:Type Button}">
+			<Setter Property="FocusVisualStyle" Value="{StaticResource ButtonFocusVisual}"/>
+			<Setter Property="Background" Value="{StaticResource ButtonNormalBackground}"/>
+			<Setter Property="BorderBrush" Value="{StaticResource ButtonNormalBorder}"/>
+			<Setter Property="BorderThickness" Value="1"/>
+			<Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+			<Setter Property="HorizontalContentAlignment" Value="Center"/>
+			<Setter Property="VerticalContentAlignment" Value="Center"/>
+			<Setter Property="Padding" Value="1"/>
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="{x:Type Button}">
+						<ControlTemplate.Resources>
+							<Storyboard x:Key="loginBtnSB">
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[0].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFAFD5FF"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF81BAF9"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[2].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FF66739B"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF2B4FC0"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(GradientBrush.GradientStops)[1].(GradientStop.Color)" Storyboard.TargetName="rectangle" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#FFB5D5F7"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#FF88C1FF"/>
+								</ColorAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(Shape.Fill).(SolidColorBrush.Color)" Storyboard.TargetName="rectangle1" RepeatBehavior="Forever">
+									<EasingColorKeyFrame KeyTime="0:0:0.5" Value="#2DFFFFFF"/>
+									<EasingColorKeyFrame KeyTime="0:0:1" Value="#26FFFFFF"/>
+								</ColorAnimationUsingKeyFrames>
+								<DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)" Storyboard.TargetName="rectangle">
+									<EasingDoubleKeyFrame KeyTime="0" Value="16"/>
+								</DoubleAnimationUsingKeyFrames>
+								<ColorAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Color)" Storyboard.TargetName="rectangle">
+									<EasingColorKeyFrame KeyTime="0" Value="#FF4989E0"/>
+								</ColorAnimationUsingKeyFrames>
+							</Storyboard>
+						</ControlTemplate.Resources>
+						<Grid Height="32" Width="37" Margin="0">
+							<Rectangle x:Name="rectangle" RadiusY="100" RadiusX="100" Stroke="Black" VerticalAlignment="Stretch">
+								<Rectangle.Effect>
+									<DropShadowEffect ShadowDepth="0"/>
+								</Rectangle.Effect>
+								<Rectangle.Fill>
+									<LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+										<GradientStop Color="#FF81BAF9" Offset="0"/>
+										<GradientStop Color="#FF88C1FF" Offset="1"/>
+										<GradientStop Color="#FF2B4FC0" Offset="0.515"/>
+									</LinearGradientBrush>
+								</Rectangle.Fill>
+							</Rectangle>
+							<Rectangle x:Name="rectangle1" Fill="#26FFFFFF" RadiusY="100" RadiusX="100" Stroke="{x:Null}" HorizontalAlignment="Center" VerticalAlignment="Top" Height="17" Width="25"/>
+							<ContentPresenter Content="Login" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+						</Grid>
+						<ControlTemplate.Triggers>
+							<EventTrigger RoutedEvent="Mouse.MouseEnter">
+								<BeginStoryboard x:Name="loginBtnSB_BeginStoryboard" Storyboard="{StaticResource loginBtnSB}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Mouse.MouseLeave">
+								<StopStoryboard BeginStoryboardName="loginBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Keyboard.GotKeyboardFocus">
+								<BeginStoryboard x:Name="loginBtnSB_BeginStoryboard1" Storyboard="{StaticResource loginBtnSB}"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="Keyboard.LostKeyboardFocus">
+								<StopStoryboard BeginStoryboardName="loginBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+							<EventTrigger RoutedEvent="ButtonBase.Click">
+								<StopStoryboard BeginStoryboardName="loginBtnSB_BeginStoryboard"/>
+							</EventTrigger>
+							<Trigger Property="IsKeyboardFocused" Value="true"/>
+							<Trigger Property="ToggleButton.IsChecked" Value="true"/>
+							<Trigger Property="IsEnabled" Value="false">
+								<Setter Property="Foreground" Value="#ADADAD"/>
+							</Trigger>
+						</ControlTemplate.Triggers>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+	</UserControl.Resources>
+	<Grid x:Name="LayoutRoot">
+		<Button x:Name="btnClose" Content="Button" HorizontalAlignment="Left" VerticalAlignment="Bottom" Style="{DynamicResource closeBtnStyle}" Margin="18,0,0,8" TabIndex="5" Cursor="Hand">
+			<Button.Background>
+				<ImageBrush ImageSource="Images/applicationIcons/PowerIcon.png" />
+			</Button.Background>
+		</Button>
+		<TextBlock x:Name="lblCapsLockInfo" TextWrapping="Wrap" Margin="0,0,0,221" TextAlignment="Center" FontStyle="Italic" Text="Caps lock is on" Foreground="#FFE21E1E" HorizontalAlignment="Center" Width="180.998" VerticalAlignment="Bottom" FontWeight="Bold" FontFamily="Segoe UI" FontSize="10.667" ScrollViewer.VerticalScrollBarVisibility="Hidden">
+			<TextBlock.Style>
+				<Style TargetType="{x:Type TextBlock}">
+					<Setter Property="TextWrapping" Value="NoWrap"/>
+					<Setter Property="TextTrimming" Value="None"/>
+				</Style>
+			</TextBlock.Style>
+		</TextBlock>
+
+		<ScrollViewer Height="170" Margin="0,0,0,275" VerticalAlignment="Bottom" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" IsHitTestVisible="True">
+			<ScrollViewer.Template>
+				<ControlTemplate TargetType="{x:Type ScrollViewer}">
+					<Grid x:Name="Grid" Background="{TemplateBinding Background}">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="*"/>
+							<ColumnDefinition Width="Auto"/>
+						</Grid.ColumnDefinitions>
+						<Grid.RowDefinitions>
+							<RowDefinition Height="*"/>
+							<RowDefinition Height="Auto"/>
+						</Grid.RowDefinitions>
+						<Rectangle x:Name="Corner" Grid.Column="1" Fill="{DynamicResource {x:Static SystemColors.ControlBrushKey}}" Grid.Row="1"/>
+						<ScrollContentPresenter x:Name="PART_ScrollContentPresenter" CanContentScroll="{TemplateBinding CanContentScroll}" CanHorizontallyScroll="False" CanVerticallyScroll="False" ContentTemplate="{TemplateBinding ContentTemplate}" Content="{TemplateBinding Content}" Grid.Column="0" Margin="{TemplateBinding Padding}" Grid.Row="0"/>
+						<ScrollBar x:Name="PART_VerticalScrollBar" AutomationProperties.AutomationId="VerticalScrollBar" Cursor="Arrow" Grid.Column="1" Maximum="{TemplateBinding ScrollableHeight}" Minimum="0" Grid.Row="0" Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}" Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}" ViewportSize="{TemplateBinding ViewportHeight}"/>
+						<ScrollBar x:Name="PART_HorizontalScrollBar" AutomationProperties.AutomationId="HorizontalScrollBar" Cursor="Arrow" Grid.Column="0" Maximum="{TemplateBinding ScrollableWidth}" Minimum="0" Orientation="Horizontal" Grid.Row="1" Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}" Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}" ViewportSize="{TemplateBinding ViewportWidth}"/>
+					</Grid>
+				</ControlTemplate>
+			</ScrollViewer.Template>
+			<StackPanel x:Name="uProfiles" Orientation="Horizontal" HorizontalAlignment="Center" IsHitTestVisible="True"/>
+		</ScrollViewer>
+		<Button Content="Switch user" VerticalAlignment="Bottom" Margin="0,0,0,181.04" Style="{DynamicResource switchUserBtn}" Height="30" HorizontalAlignment="Center" Width="88" Name="btnSwitchUser" TabIndex="3" Cursor="Hand" />
+		<Button Content="Button" HorizontalAlignment="Right" VerticalAlignment="Bottom" Width="80" Style="{DynamicResource advanceBtnStyle}" RenderTransformOrigin="0.288,0.483" Margin="0,0,18,8" Name="btnAdvanceSettings" TabIndex="4" Cursor="Hand">
+			<Button.Background>
+				<ImageBrush ImageSource="Images/applicationIcons/advanceSettings.png" />
+			</Button.Background>
+		</Button>
+		<TextBox x:Name="txtUsername" Height="20" Margin="0,0,0,272" TextWrapping="Wrap" VerticalAlignment="Bottom" HorizontalAlignment="Center" Width="180" VerticalContentAlignment="Center" TabIndex="0" Visibility="Hidden"/>
+		<PasswordBox x:Name="txtPassword" ToolTip="Password" HorizontalAlignment="Center" VerticalAlignment="Bottom" Width="180" Height="20" Margin="0,0,0,236" Visibility="Hidden" TabIndex="1" ForceCursor="False" />
+		<Button x:Name="btnLogin" Content="Button" HorizontalAlignment="Center" VerticalAlignment="Bottom" Width="37" Margin="245,0,5,231" Style="{DynamicResource btnLoginStyle}" Visibility="Hidden" TabIndex="2" Cursor="Hand"/>
+		<TextBlock x:Name="lblUsernamePlaceholder" Height="21.04" Margin="62,0,166,268" TextWrapping="Wrap" Text="User name" VerticalAlignment="Bottom" HorizontalAlignment="Center" FontStyle="Italic" IsHitTestVisible="False" Foreground="#FFA7A7A7" Panel.ZIndex="1" Visibility="Hidden" Width="59" />
+		<TextBlock x:Name="lblPasswordPlaceholder" Height="21.04" Margin="62,0,167,232" TextWrapping="Wrap" Text="Password" VerticalAlignment="Bottom" HorizontalAlignment="Center" FontStyle="Italic" IsHitTestVisible="False" Foreground="#FFA7A7A7" Panel.ZIndex="1" Visibility="Hidden" Width="58" />
+		<Label Content="K-Bridge Creative Outsource v1.0" Height="55" HorizontalAlignment="Center" Margin="237,0,238,88" Name="lblSoftwareName" VerticalAlignment="Bottom" Width="891" HorizontalContentAlignment="Center" VerticalContentAlignment="Bottom" FontSize="36" Foreground="#FFF9771C" FontFamily="Century Gothic" FontWeight="Bold" >
+			<Label.Background>
+				<RadialGradientBrush>
+					<GradientStop Color="#FF062943" Offset="0.387"/>
+					<GradientStop Offset="1"/>
+					<GradientStop Color="#247C97AC" Offset="0.722"/>
+				</RadialGradientBrush>
+			</Label.Background>
+		</Label>
+		<Grid.Background>
+			<ImageBrush ImageSource="Images/BackgroundImages/AdobeStock New.JPG" Stretch="UniformToFill" />
+		</Grid.Background>
+	</Grid>
+</UserControl>

@@ -1,0 +1,3 @@
+DBServer=IT-1\SQLEXPRESS
+Database=GestetnerWFS
+GBConnection=ON

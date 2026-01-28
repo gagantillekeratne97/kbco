@@ -1,0 +1,1071 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProductVersion>
+    </ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{D311DB24-16DA-4885-9080-608344075940}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <StartupObject>KBCO.My.MyApplication</StartupObject>
+    <RootNamespace>KBCO</RootNamespace>
+    <AssemblyName>KBCO</AssemblyName>
+    <FileAlignment>512</FileAlignment>
+    <MyType>WindowsForms</MyType>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <PublishUrl>E:\Published Exe\KBCO\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>false</MapFileExtensions>
+    <OpenBrowserOnPublish>false</OpenBrowserOnPublish>
+    <ApplicationRevision>8</ApplicationRevision>
+    <ApplicationVersion>1.0.0.8</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <PublishWizardCompleted>true</PublishWizardCompleted>
+    <BootstrapperEnabled>false</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DocumentationFile>KBCO.xml</DocumentationFile>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+    <CodeAnalysisRuleSet>SecurityRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <PlatformTarget>x86</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <DefineDebug>false</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DocumentationFile>KBCO.xml</DocumentationFile>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionExplicit>On</OptionExplicit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionCompare>Binary</OptionCompare>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionStrict>Off</OptionStrict>
+  </PropertyGroup>
+  <PropertyGroup>
+    <OptionInfer>On</OptionInfer>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>My Project\app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>KB1.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignAssembly>false</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestCertificateThumbprint>E5818A6F8780CC2809C5B6AFE743DFDE77483E26</ManifestCertificateThumbprint>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestKeyFile>Gestetner_1_TemporaryKey.pfx</ManifestKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateManifests>false</GenerateManifests>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TargetZone>LocalIntranet</TargetZone>
+  </PropertyGroup>
+  <PropertyGroup>
+    <SignManifests>false</SignManifests>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DocumentationFile>KBCO.xml</DocumentationFile>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+    <DebugType>full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisRuleSet>SecurityRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <DefineTrace>true</DefineTrace>
+    <OutputPath>bin\Release\</OutputPath>
+    <DocumentationFile>KBCO.xml</DocumentationFile>
+    <Optimize>true</Optimize>
+    <NoWarn>42016,41999,42017,42018,42019,42032,42036,42020,42021,42022</NoWarn>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CrystalDecisions.CrystalReports.Design">
+      <HintPath>..\..\..\..\..\..\..\..\..\..\GAGAN\gespos - 1\POSSystemRebuild\bin\Debug\CrystalDecisions.CrystalReports.Design.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\..\..\GAGAN\gespos - 1\POSSystemRebuild\bin\Debug\CrystalDecisions.CrystalReports.Engine.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.ReportAppServer.DataSetConversion, Version=13.0.2000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\..\..\GAGAN\gespos - 1\POSSystemRebuild\bin\Debug\CrystalDecisions.ReportAppServer.DataSetConversion.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.ReportSource, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\..\..\GAGAN\gespos - 1\POSSystemRebuild\bin\Debug\CrystalDecisions.ReportSource.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.Shared, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\..\..\GAGAN\gespos - 1\POSSystemRebuild\bin\Debug\CrystalDecisions.Shared.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.Web, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\..\..\GAGAN\gespos - 1\POSSystemRebuild\bin\Debug\CrystalDecisions.Web.dll</HintPath>
+    </Reference>
+    <Reference Include="CrystalDecisions.Windows.Forms, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\..\..\..\..\GAGAN\gespos - 1\POSSystemRebuild\bin\Debug\CrystalDecisions.Windows.Forms.dll</HintPath>
+    </Reference>
+    <Reference Include="Dapper, Version=2.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\Dapper.2.1.66\lib\net461\Dapper.dll</HintPath>
+    </Reference>
+    <Reference Include="FlashControlV71, Version=1.0.3187.32366, Culture=neutral, PublicKeyToken=692fbea5521e1304">
+      <Private>True</Private>
+      <HintPath>..\..\..\..\FlashControlV71.dll</HintPath>
+    </Reference>
+    <Reference Include="itextsharp">
+      <HintPath>..\packages\iTextSharp.5.5.13\lib\itextsharp.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=9.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.9.0.1\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Office.Interop.Excel, Version=15.0.0.0, Culture=neutral, PublicKeyToken=71e9bce111e9429c, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <EmbedInteropTypes>True</EmbedInteropTypes>
+      <HintPath>..\DLL\Microsoft.Office.Interop.Excel.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.ReportViewer.Common, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+    <Reference Include="Microsoft.ReportViewer.WinForms, Version=10.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="Newtonsoft.Json.Net20">
+      <HintPath>..\packages\Newtonsoft.Json.Net20.dll.3.5.0\lib\2.0\Newtonsoft.Json.Net20.dll</HintPath>
+    </Reference>
+    <Reference Include="OpenPop">
+      <HintPath>C:\Users\kasuntgocl\Desktop\OpenPop.dll</HintPath>
+    </Reference>
+    <Reference Include="PdfSharp">
+      <HintPath>C:\Users\kasuntgocl\Desktop\PdfSharp.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="PresentationCore" />
+    <Reference Include="PresentationFramework" />
+    <Reference Include="PresentationFramework.Aero" />
+    <Reference Include="PresentationFramework.Classic" />
+    <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=4.0.4.1, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.4.5.3\lib\net461\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions, Version=4.2.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Threading.Tasks.Extensions.4.5.4\lib\net461\System.Threading.Tasks.Extensions.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Services" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Windows.Forms.DataVisualization" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="UIAutomationProvider" />
+    <Reference Include="unvell.ReoGrid, Version=2.0.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\packages\unvell.ReoGrid.dll.2.0.1.0\lib\20\unvell.ReoGrid.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsBase" />
+    <Reference Include="WindowsFormsIntegration" />
+    <Reference Include="Zen.Barcode.Core">
+      <HintPath>..\packages\Zen.Barcode.Rendering.Framework.3.1.10729.1\lib\Zen.Barcode.Core.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Import Include="Microsoft.VisualBasic" />
+    <Import Include="System" />
+    <Import Include="System.Collections" />
+    <Import Include="System.Collections.Generic" />
+    <Import Include="System.Data" />
+    <Import Include="System.Drawing" />
+    <Import Include="System.Diagnostics" />
+    <Import Include="System.Windows.Forms" />
+    <Import Include="System.Linq" />
+    <Import Include="System.Xml.Linq" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="ApplicationEvents.vb" />
+    <Compile Include="Classes\InvoiceRequestVM.vb" />
+    <Compile Include="Classes\MainClasses.vb" />
+    <Compile Include="frmCreditNote.Designer.vb">
+      <DependentUpon>frmCreditNote.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmCreditNote.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCreditNoteApprove.Designer.vb">
+      <DependentUpon>frmCreditNoteApprove.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmCreditNoteApprove.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCreditNoteReqQue.Designer.vb">
+      <DependentUpon>frmCreditNoteReqQue.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmCreditNoteReqQue.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmGenaralSettings.designer.vb">
+      <DependentUpon>frmGenaralSettings.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmGenaralSettings.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmLoginWinForm.designer.vb">
+      <DependentUpon>frmLoginWinForm.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmLoginWinForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmP2PSearch.Designer.vb">
+      <DependentUpon>frmP2PSearch.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmP2PSearch.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCreateCustomeReport.Designer.vb">
+      <DependentUpon>frmCreateCustomeReport.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmCreateCustomeReport.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCustomReport.Designer.vb">
+      <DependentUpon>frmCustomReport.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmCustomReport.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmPDFViwer.designer.vb">
+      <DependentUpon>frmPDFViwer.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmPDFViwer.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmSelectLoginCompany1.Designer.vb">
+      <DependentUpon>frmSelectLoginCompany1.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmSelectLoginCompany1.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmUserLogin.Designer.vb">
+      <DependentUpon>frmUserLogin.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmUserLogin.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="KBCO.xaml.vb">
+      <DependentUpon>KBCO.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ListViewEx.vb">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmBank.designer.vb">
+      <DependentUpon>frmBank.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmBank.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmCustomerMaster.Designer.vb">
+      <DependentUpon>frmCustomerMaster.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmCustomerMaster.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmInternalOpeningBalance.Designer.vb">
+      <DependentUpon>frmInternalOpeningBalance.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmInternalOpeningBalance.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmMachineMaster.Designer.vb">
+      <DependentUpon>frmMachineMaster.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmMachineMaster.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmManageDeviceAndItems.designer.vb">
+      <DependentUpon>frmManageDeviceAndItems.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmManageDeviceAndItems.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmPartMaster.Designer.vb">
+      <DependentUpon>frmPartMaster.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmPartMaster.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmRecordAdjustMaster.Designer.vb">
+      <DependentUpon>frmRecordAdjustMaster.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmRecordAdjustMaster.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmTechMaster.Designer.vb">
+      <DependentUpon>frmTechMaster.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmTechMaster.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MasterFiles\frmVAT_Master.Designer.vb">
+      <DependentUpon>frmVAT_Master.vb</DependentUpon>
+    </Compile>
+    <Compile Include="MasterFiles\frmVAT_Master.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ModulesUpdates.vb" />
+    <Compile Include="frmAbout.Designer.vb">
+      <DependentUpon>frmAbout.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmAbout.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmAddUser.designer.vb">
+      <DependentUpon>frmAddUser.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmAddUser.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCrystalReportViwer.designer.vb">
+      <DependentUpon>frmCrystalReportViwer.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmCrystalReportViwer.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmQueryRunner.Designer.vb">
+      <DependentUpon>frmQueryRunner.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmQueryRunner.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmServistaSearch.Designer.vb">
+      <DependentUpon>frmServistaSearch.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmServistaSearch.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmManageMenuItems.Designer.vb">
+      <DependentUpon>frmManageMenuItems.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmManageMenuItems.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmManageSearchControllers.Designer.vb">
+      <DependentUpon>frmManageSearchControllers.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmManageSearchControllers.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmSetSoftwareUpdate.Designer.vb">
+      <DependentUpon>frmSetSoftwareUpdate.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmSetSoftwareUpdate.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\AODItemUpdate.Designer.vb">
+      <DependentUpon>AODItemUpdate.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\AODItemUpdate.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\dbChanges2.Designer.vb">
+      <DependentUpon>dbChanges2.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\dbChanges2.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\dbChnges.Designer.vb">
+      <DependentUpon>dbChnges.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\dbChnges.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmBlockCustomers.Designer.vb">
+      <DependentUpon>frmBlockCustomers.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmBlockCustomers.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmColorMeaterReading.Designer.vb">
+      <DependentUpon>frmColorMeaterReading.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmColorMeaterReading.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmCreditNote.Designer.vb">
+      <DependentUpon>frmCreditNote.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmCreditNote.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmDebtorsReport.Designer.vb">
+      <DependentUpon>frmDebtorsReport.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmDebtorsReport.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalApproval.Designer.vb">
+      <DependentUpon>frmInternalApproval.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalApproval.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalApprovalQ.Designer.vb">
+      <DependentUpon>frmInternalApprovalQ.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalApprovalQ.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalDispatch.Designer.vb">
+      <DependentUpon>frmInternalDispatch.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalDispatch.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalDospatchQ.Designer.vb">
+      <DependentUpon>frmInternalDospatchQ.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalDospatchQ.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalFinanceUpload.Designer.vb">
+      <DependentUpon>frmInternalFinanceUpload.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalFinanceUpload.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalPrintView.Designer.vb">
+      <DependentUpon>frmInternalPrintView.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalPrintView.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalQ.Designer.vb">
+      <DependentUpon>frmInternalQ.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalQ.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalRequest.Designer.vb">
+      <DependentUpon>frmInternalRequest.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInternalRequest.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInvoiceListForMonthForm.Designer.vb">
+      <DependentUpon>frmInvoiceListForMonthForm.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmInvoiceListForMonthForm.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmManageAgreements.Designer.vb">
+      <DependentUpon>frmManageAgreements.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmManageAgreements.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmMeaterReading.Designer.vb">
+      <DependentUpon>frmMeaterReading.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmMeaterReading.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmNewMachienInsallation.Designer.vb">
+      <DependentUpon>frmNewMachienInsallation.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmNewMachienInsallation.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmReciptMaster.Designer.vb">
+      <DependentUpon>frmReciptMaster.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmReciptMaster.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmRecipts.Designer.vb">
+      <DependentUpon>frmRecipts.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmRecipts.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\frmReturnMachine.Designer.vb">
+      <DependentUpon>frmReturnMachine.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\frmReturnMachine.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="P2P Transactions\InternalCancelledListsReport.Designer.vb">
+      <DependentUpon>InternalCancelledListsReport.vb</DependentUpon>
+    </Compile>
+    <Compile Include="P2P Transactions\InternalCancelledListsReport.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PrintForms\frmPrintInternal.Designer.vb">
+      <DependentUpon>frmPrintInternal.vb</DependentUpon>
+    </Compile>
+    <Compile Include="PrintForms\frmPrintInternal.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PrintForms\frmPrintInvoice.Designer.vb">
+      <DependentUpon>frmPrintInvoice.vb</DependentUpon>
+    </Compile>
+    <Compile Include="PrintForms\frmPrintInvoice.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PrintForms\frmPrintRecipt.Designer.vb">
+      <DependentUpon>frmPrintRecipt.vb</DependentUpon>
+    </Compile>
+    <Compile Include="PrintForms\frmPrintRecipt.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ProgramStracture.vb" />
+    <Compile Include="POP3.vb" />
+    <Compile Include="dbConnections.vb" />
+    <Compile Include="frmAuthorization.Designer.vb">
+      <DependentUpon>frmAuthorization.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmAuthorization.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmCamera.designer.vb">
+      <DependentUpon>frmCamera.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmCamera.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmChangeServerBackupPath.Designer.vb">
+      <DependentUpon>frmChangeServerBackupPath.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmChangeServerBackupPath.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmMDImain.designer.vb">
+      <DependentUpon>frmMDImain.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmMDImain.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmSysConnectedUsers.Designer.vb">
+      <DependentUpon>frmSysConnectedUsers.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmSysConnectedUsers.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmUserGroups.Designer.vb">
+      <DependentUpon>frmUserGroups.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmUserGroups.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmUserProfile.Designer.vb">
+      <DependentUpon>frmUserProfile.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmUserProfile.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmUserUpdates.Designer.vb">
+      <DependentUpon>frmUserUpdates.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmUserUpdates.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Login.xaml.vb">
+      <DependentUpon>Login.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="frmSearch.designer.vb">
+      <DependentUpon>frmSearch.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmSearch.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmSettings.Designer.vb">
+      <DependentUpon>frmSettings.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmSettings.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="frmUserPermission.Designer.vb">
+      <DependentUpon>frmUserPermission.vb</DependentUpon>
+    </Compile>
+    <Compile Include="frmUserPermission.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="generalValidation.vb" />
+    <Compile Include="globalFunctions.vb" />
+    <Compile Include="globalVariables.vb" />
+    <Compile Include="MD5.vb" />
+    <Compile Include="My Project\AssemblyInfo.vb">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="My Project\Application.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Application.myapp</DependentUpon>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <Compile Include="My Project\Resources.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="My Project\Settings.Designer.vb">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
+    <Compile Include="Notification.vb" />
+    <Compile Include="ReportsAndDashboards\frmBackupTonerHistory.Designer.vb">
+      <DependentUpon>frmBackupTonerHistory.vb</DependentUpon>
+    </Compile>
+    <Compile Include="ReportsAndDashboards\frmBackupTonerHistory.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ReportsAndDashboards\frmGPCPCReport.Designer.vb">
+      <DependentUpon>frmGPCPCReport.vb</DependentUpon>
+    </Compile>
+    <Compile Include="ReportsAndDashboards\frmGPCPCReport.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ReportsAndDashboards\frmReportMenu.Designer.vb">
+      <DependentUpon>frmReportMenu.vb</DependentUpon>
+    </Compile>
+    <Compile Include="ReportsAndDashboards\frmReportMenu.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ssMyCompanylogo.designer.vb">
+      <DependentUpon>ssMyCompanylogo.vb</DependentUpon>
+    </Compile>
+    <Compile Include="ssMyCompanylogo.vb">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="UI\IconsAndPaths.vb" />
+    <Compile Include="UI\MainMenu.xaml.vb">
+      <DependentUpon>MainMenu.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Metrolizer.vb" />
+    <Compile Include="UI\Metrolizer2.vb" />
+    <Compile Include="UI\Tile - Copy.xaml.vb">
+      <DependentUpon>Tile - Copy.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\Tile.xaml.vb">
+      <DependentUpon>Tile.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="UI\TileJumper - Copy.vb" />
+    <Compile Include="UI\TileJumper.vb" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="frmCreditNote.resx">
+      <DependentUpon>frmCreditNote.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmCreditNoteApprove.resx">
+      <DependentUpon>frmCreditNoteApprove.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmCreditNoteReqQue.resx">
+      <DependentUpon>frmCreditNoteReqQue.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmGenaralSettings.resx">
+      <DependentUpon>frmGenaralSettings.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmLoginWinForm.resx">
+      <DependentUpon>frmLoginWinForm.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmP2PSearch.resx">
+      <DependentUpon>frmP2PSearch.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmCreateCustomeReport.resx">
+      <DependentUpon>frmCreateCustomeReport.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmCustomReport.resx">
+      <DependentUpon>frmCustomReport.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmPDFViwer.resx">
+      <DependentUpon>frmPDFViwer.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmAbout.resx">
+      <DependentUpon>frmAbout.vb</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmAddUser.resx">
+      <DependentUpon>frmAddUser.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmCrystalReportViwer.resx">
+      <DependentUpon>frmCrystalReportViwer.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmQueryRunner.resx">
+      <DependentUpon>frmQueryRunner.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmSelectLoginCompany1.resx">
+      <DependentUpon>frmSelectLoginCompany1.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmServistaSearch.resx">
+      <DependentUpon>frmServistaSearch.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmManageMenuItems.resx">
+      <DependentUpon>frmManageMenuItems.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmManageSearchControllers.resx">
+      <DependentUpon>frmManageSearchControllers.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmSetSoftwareUpdate.resx">
+      <DependentUpon>frmSetSoftwareUpdate.vb</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmAuthorization.resx">
+      <DependentUpon>frmAuthorization.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmCamera.resx">
+      <DependentUpon>frmCamera.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmChangeServerBackupPath.resx">
+      <DependentUpon>frmChangeServerBackupPath.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmMDImain.resx">
+      <DependentUpon>frmMDImain.vb</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmSearch.resx">
+      <DependentUpon>frmSearch.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmSettings.resx">
+      <DependentUpon>frmSettings.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmSysConnectedUsers.resx">
+      <DependentUpon>frmSysConnectedUsers.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmUserGroups.resx">
+      <DependentUpon>frmUserGroups.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmUserLogin.resx">
+      <DependentUpon>frmUserLogin.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmUserPermission.resx">
+      <DependentUpon>frmUserPermission.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmUserProfile.resx">
+      <DependentUpon>frmUserProfile.vb</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="frmUserUpdates.resx">
+      <DependentUpon>frmUserUpdates.vb</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmBank.resx">
+      <DependentUpon>frmBank.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmCustomerMaster.resx">
+      <DependentUpon>frmCustomerMaster.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmInternalOpeningBalance.resx">
+      <DependentUpon>frmInternalOpeningBalance.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmMachineMaster.resx">
+      <DependentUpon>frmMachineMaster.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmManageDeviceAndItems.resx">
+      <DependentUpon>frmManageDeviceAndItems.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmPartMaster.resx">
+      <DependentUpon>frmPartMaster.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmRecordAdjustMaster.resx">
+      <DependentUpon>frmRecordAdjustMaster.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmTechMaster.resx">
+      <DependentUpon>frmTechMaster.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MasterFiles\frmVAT_Master.resx">
+      <DependentUpon>frmVAT_Master.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="My Project\Resources.resx">
+      <Generator>PublicVbMyResourcesResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.vb</LastGenOutput>
+      <CustomToolNamespace>My.Resources</CustomToolNamespace>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\AODItemUpdate.resx">
+      <DependentUpon>AODItemUpdate.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\dbChanges2.resx">
+      <DependentUpon>dbChanges2.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\dbChnges.resx">
+      <DependentUpon>dbChnges.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmBlockCustomers.resx">
+      <DependentUpon>frmBlockCustomers.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmColorMeaterReading.resx">
+      <DependentUpon>frmColorMeaterReading.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmCreditNote.resx">
+      <DependentUpon>frmCreditNote.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmDebtorsReport.resx">
+      <DependentUpon>frmDebtorsReport.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalApproval.resx">
+      <DependentUpon>frmInternalApproval.vb</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalApprovalQ.resx">
+      <DependentUpon>frmInternalApprovalQ.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalDispatch.resx">
+      <DependentUpon>frmInternalDispatch.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalDospatchQ.resx">
+      <DependentUpon>frmInternalDospatchQ.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalFinanceUpload.resx">
+      <DependentUpon>frmInternalFinanceUpload.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalPrintView.resx">
+      <DependentUpon>frmInternalPrintView.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalQ.resx">
+      <DependentUpon>frmInternalQ.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInternalRequest.resx">
+      <DependentUpon>frmInternalRequest.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmInvoiceListForMonthForm.resx">
+      <DependentUpon>frmInvoiceListForMonthForm.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmManageAgreements.resx">
+      <DependentUpon>frmManageAgreements.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmMeaterReading.resx">
+      <DependentUpon>frmMeaterReading.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmNewMachienInsallation.resx">
+      <DependentUpon>frmNewMachienInsallation.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmReciptMaster.resx">
+      <DependentUpon>frmReciptMaster.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmRecipts.resx">
+      <DependentUpon>frmRecipts.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\frmReturnMachine.resx">
+      <DependentUpon>frmReturnMachine.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="P2P Transactions\InternalCancelledListsReport.resx">
+      <DependentUpon>InternalCancelledListsReport.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PrintForms\frmPrintInternal.resx">
+      <DependentUpon>frmPrintInternal.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PrintForms\frmPrintInvoice.resx">
+      <DependentUpon>frmPrintInvoice.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PrintForms\frmPrintRecipt.resx">
+      <DependentUpon>frmPrintRecipt.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ReportsAndDashboards\frmBackupTonerHistory.resx">
+      <DependentUpon>frmBackupTonerHistory.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ReportsAndDashboards\frmGPCPCReport.resx">
+      <DependentUpon>frmGPCPCReport.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ReportsAndDashboards\frmReportMenu.resx">
+      <DependentUpon>frmReportMenu.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ssMyCompanylogo.resx">
+      <DependentUpon>ssMyCompanylogo.vb</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config">
+      <SubType>Designer</SubType>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="bin\Debug\User Manual\USER MANUAL.pdf" />
+    <None Include="packages.config" />
+    <None Include="My Project\app.manifest">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="My Project\Application.myapp">
+      <Generator>MyApplicationCodeGenerator</Generator>
+      <LastGenOutput>Application.Designer.vb</LastGenOutput>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="My Project\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <CustomToolNamespace>My</CustomToolNamespace>
+      <LastGenOutput>Settings.Designer.vb</LastGenOutput>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\applicationIcons\advanceSettings.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\applicationIcons\PowerIcon.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Service References\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\applicationIcons\Searchicon.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{C0C07587-41A7-46C8-8FBD-3F9C8EBE2DDC}" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include=".NETFramework,Version=v4.0">
+      <Visible>False</Visible>
+      <ProductName>Microsoft .NET Framework 4 %28x86 and x64%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1 Client Profile</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Windows.Installer.3.1">
+      <Visible>False</Visible>
+      <ProductName>Windows Installer 3.1</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <ItemGroup>
+    <Page Include="KBCO.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Login.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="UI\MainMenu.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\Tile - Copy.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="UI\Tile.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="bin\Debug\crpe32.dll" />
+    <Resource Include="swlogoicon.ico" />
+    <Resource Include="Images\BackgroundImages\profileDummy.png" />
+    <Resource Include="bin\Debug\swlogoicon.ico" />
+    <Resource Include="Images\applicationIcons\Star 001.png" />
+    <Resource Include="Images\applicationIcons\Star 003.png" />
+    <Resource Include="Images\applicationIcons\button_minus_red.png" />
+    <Resource Include="Images\applicationIcons\Transparent Glass.png" />
+    <Resource Include="Images\BackgroundImages\plain-victorian_00339513.jpg" />
+    <Resource Include="Images\BackgroundImages\16739059182_39f6b3258d_o.jpg" />
+    <Resource Include="Images\BackgroundImages\K-Bridge 6.1.png" />
+    <Resource Include="Images\BackgroundImages\Footer.png" />
+    <Resource Include="Images\BackgroundImages\AdobeStock New.JPG" />
+    <Resource Include="Images\BackgroundImages\Outsourcing New.jpg" />
+    <Resource Include="Images\BackgroundImages\K-Bridge Outsource.png" />
+    <Resource Include="Images\BackgroundImages\background.jpg" />
+    <Resource Include="Images\BackgroundImages\videoblocks-bg-=.png" />
+    <Content Include="KB1.ico" />
+    <Content Include="KBO 2.ico" />
+    <None Include="Resources\Image1.png" />
+    <None Include="Resources\B1.png" />
+    <None Include="Resources\C1.png" />
+    <None Include="Resources\O1.png" />
+    <None Include="Resources\B2.png" />
+    <Content Include="Resources\update.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Images\applicationIcons\update.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\Update.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="bin\Debug\Reports\" />
+  </ItemGroup>
+  <ItemGroup>
+    <PublishFile Include="bin\Debug\crpe32.dll">
+      <Visible>False</Visible>
+      <Group>
+      </Group>
+      <TargetPath>
+      </TargetPath>
+      <PublishState>Exclude</PublishState>
+      <IncludeHash>True</IncludeHash>
+      <FileType>File</FileType>
+    </PublishFile>
+    <PublishFile Include="Resources\update.bmp">
+      <Visible>False</Visible>
+      <Group>
+      </Group>
+      <TargetPath>
+      </TargetPath>
+      <PublishState>Exclude</PublishState>
+      <IncludeHash>True</IncludeHash>
+      <FileType>File</FileType>
+    </PublishFile>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
