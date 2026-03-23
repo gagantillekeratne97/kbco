@@ -5,6 +5,7 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports System.Runtime.InteropServices.ComTypes
 Public Class frmReportMenu
 
     Dim techCodeQuery As String = ""
@@ -531,7 +532,6 @@ Public Class frmReportMenu
 
             '{TBL_INVOICE_MASTER.REP_CODE} {TBL_INVOICE_MASTER.CUS_ID}
 
-
             cryRpt.RecordSelectionFormula = "{TBL_INVOICE_DET.COM_ID} = '" & globalVariables.selectedCompanyID & "' AND {TBL_INVOICE_MASTER.INV_DATE} in cdate('" & Format(dtpStartDate.Value, "MM/dd/yyyy") & "') to cdate('" & Format(dtpEndDate.Value, "dd/MM/yyyy") & "') " & CusCodeQuery + techCodeQuery + RepCodeQuery & ""
 
             cryRpt.DataDefinition.FormulaFields.Item("Date").Text = "'" & dtpStartDate.Value.ToShortDateString & "'"
@@ -910,8 +910,6 @@ Public Class frmReportMenu
                 crtableLogoninfo.ConnectionInfo = crConnectionInfo
                 CrTable.ApplyLogOnInfo(crtableLogoninfo)
             Next
-
-
 
             reportformObj.CrystalReportViewer1.Refresh()
             cryRpt.Refresh()
@@ -1434,6 +1432,50 @@ Public Class frmReportMenu
         End Try
     End Sub
 
+    Private Sub btnActualMachineReturnRpt_Click(sender As Object, e As EventArgs) Handles btnActualMachineReturnRpt.Click
+        Try
+            Dim reportFormObj As New frmCrystalReportViwer
+            Dim reportNameString As String = "ActualMachineReturnReport"
+            Dim AdminUser As Boolean = False
+            Dim path As String = ""
+            path = globalVariables.crystalReportpath + "\Reports\rptKBOActualMachineReturn.rpt"
+
+            Dim cryRpt As New ReportDocument
+            Dim crTables As Tables
+            Dim crtableLoginInfo As New TableLogOnInfo
+            Dim crConnectionInfo As New ConnectionInfo
+
+            cryRpt.Load(path)
+
+            With crConnectionInfo
+                .ServerName = selectedServerName
+                .DatabaseName = selectedDatabaseName
+                '.UserID = "gestetner"
+                '.Password = "gocl248"
+                .UserID = "db_ab8b61_kbco_admin"
+                .Password = "Ssg789.541351"
+            End With
+
+            crTables = cryRpt.Database.Tables
+            For Each CrTable In crTables
+                crtableLoginInfo = CrTable.LogOnInfo
+                crtableLoginInfo.ConnectionInfo = crConnectionInfo
+                CrTable.ApplyLogOnInfo(crtableLoginInfo)
+            Next
+
+            reportFormObj.CrystalReportViewer1.Refresh()
+            cryRpt.Refresh()
+            reportFormObj.CrystalReportViewer1.ReportSource = cryRpt
+            reportFormObj.CrystalReportViewer1.Refresh()
+            path = ""
+            reportFormObj.CrystalReportViewer1.ShowPrintButton = False
+            reportFormObj.Show()
+
+        Catch ex As Exception
+            MsgBox(ex.Message)
+        End Try
+    End Sub
+
     Private Sub Button1_Click(sender As Object, e As EventArgs) Handles Button1.Click
         Try
             '/=======================
@@ -1520,5 +1562,53 @@ Public Class frmReportMenu
         frmInvoiceListForMonthForm.startDate = dtpStartDate.Value.ToString()
         frmInvoiceListForMonthForm.endDate = dtpEndDate.Value.ToString()
         frmInvoiceListForMonthForm.Show()
+    End Sub
+
+    Private Sub btnInvoiceReportBySerial_Click(sender As Object, e As EventArgs)
+
+    End Sub
+
+    Private Sub btnDisposedMachineList_Click(sender As Object, e As EventArgs) Handles btnDisposedMachineList.Click
+        Try
+            Dim reportFormObj As New frmCrystalReportViwer
+            Dim reportNameString As String = "DisposedMachineLists"
+            Dim AdminUser As Boolean = False
+            Dim path As String = ""
+            path = globalVariables.crystalReportpath + "\Reports\rptKBODisposedMachineList.rpt"
+
+            Dim cryRpt As New ReportDocument
+            Dim crTables As Tables
+            Dim crtableLoginInfo As New TableLogOnInfo
+            Dim crConnectionInfo As New ConnectionInfo
+
+            cryRpt.Load(path)
+
+            With crConnectionInfo
+                .ServerName = selectedServerName
+                .DatabaseName = selectedDatabaseName
+                .UserID = "gestetner"
+                .Password = "gocl248"
+                '.UserID = "db_ab8b61_kbco_admin"
+                '.Password = "Ssg789.541351"
+            End With
+
+            crTables = cryRpt.Database.Tables
+            For Each CrTable In crTables
+                crtableLoginInfo = CrTable.LogOnInfo
+                crtableLoginInfo.ConnectionInfo = crConnectionInfo
+                CrTable.ApplyLogOnInfo(crtableLoginInfo)
+            Next
+
+            reportFormObj.CrystalReportViewer1.Refresh()
+            cryRpt.Refresh()
+            reportFormObj.CrystalReportViewer1.ReportSource = cryRpt
+            reportFormObj.CrystalReportViewer1.Refresh()
+            path = ""
+            reportFormObj.CrystalReportViewer1.ShowPrintButton = False
+            reportFormObj.Show()
+
+        Catch ex As Exception
+            MsgBox(ex.Message)
+        End Try
     End Sub
 End Class

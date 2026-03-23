@@ -7,6 +7,8 @@ Imports System.Net
 Imports System.IO
 Imports System.Resources
 Imports System.Text
+Imports System.Configuration
+Imports Dapper
 
 Public Class frmColorMeaterReading
 
@@ -29,6 +31,7 @@ Public Class frmColorMeaterReading
     Dim viewPreviousData As Boolean = False
     Dim is_FirstRecord As Boolean = True '// reading first record of the dgbw
     '//Active form perform btn click case
+    Dim connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
             Case "New"
@@ -872,434 +875,637 @@ Public Class frmColorMeaterReading
     Dim sqlCMD As New SqlCommand
 
     Private Sub LoadSelectedAgreement()
+        If String.IsNullOrWhiteSpace(txtSelectedAG.Text) Then Exit Sub
 
-        If Trim(txtSelectedAG.Text) = "" Then
-            Exit Sub
-        End If
-        Dim MkeModel As String
-        Dim SN As String
-        Dim PNo As String
-        Dim MLoc As String
+        Dim agId As String = txtSelectedAG.Text.Trim()
+        Dim cusId As String = txtCustomerID.Text.Trim()
+        Dim comId As String = globalVariables.selectedCompanyID
 
-        Dim BillingPeriod As Integer = 1
-        Dim LastBillingDate As DateTime
-        Dim IsPrevousRecordLoading As Boolean = False
-        Dim lastMR As Integer = 0
-        Dim LastMRColor As Integer = 0
+        Const billingPeriodSql As String = "
+        SELECT ISNULL(BILLING_PERIOD, 1)
+        FROM TBL_CUS_AGREEMENT 
+        WHERE AG_ID = @AgId AND COM_ID = @ComId"
 
-        Dim EndReading As String = ""
-        Dim ColorEndReading As String = ""
-        Dim Waistage As String = ""
-        Dim ColorWaistage As String = ""
-        Dim Copies As Integer = 0
-        Dim ColorCopies As Integer = 0
+        Const lastBillingDateSql As String = "
+        SELECT ISNULL(MAX(PERIOD_START), GETDATE())
+        FROM TBL_TBL_METER_READING_DET  
+        WHERE COM_ID = @ComId AND AG_ID = @AgId"
 
-        dgMR.Rows.Clear()
-        Dim IsMRhave As Boolean = False
+        Const customerLocationSql As String = " 
+        SELECT CUS_NAME AS Loc1, CUS_ADD1 AS Loc2, CUS_ADD2 AS Loc3 
+        FROM MTBL_CUSTOMER_MASTER 
+        WHERE COM_ID = @ComId AND CUS_ID = @cusid"
+
+        Const machineLocationSql As String = " 
+        SELECT TOP 1 M_LOC1 AS Loc1, M_LOC2 AS Loc2, M_LOC3 AS Loc3 
+        FROM TBL_MACHINE_TRANSACTIONS
+        WHERE COM_ID = @ComId AND AG_ID = @AgId"
+
+        Const isInvoicedSql As String =
+       "SELECT CAST(CASE WHEN EXISTS (
+             SELECT 1 FROM TBL_INVOICE_MASTER
+             WHERE COM_ID=@ComId AND AG_ID=@AgId
+               AND INV_PERIOD_START=@PeriodStart
+               AND INV_PERIOD_END=@PeriodEnd
+         ) THEN 1 ELSE 0 END AS BIT)"
+
+        Const machineListSql As String =
+        "SELECT DISTINCT
+             mm.MACHINE_MODEL                                        AS MakeModel,
+             mt.SERIAL                                               AS Serial,
+             mt.P_NO                                                 AS PNo,
+             mt.M_DEPT                                               AS MLoc,
+             (SELECT TOP 1 ISNULL(END_MR, 0)
+              FROM TBL_TBL_METER_READING_DET_COLOR
+              WHERE SERIAL_NO=mt.SERIAL AND COM_ID=@ComId
+              ORDER BY TRANS_ID DESC)                                AS LReading,
+             (SELECT TOP 1 ISNULL(C_END_MR, 0)
+              FROM TBL_TBL_METER_READING_DET_COLOR
+              WHERE SERIAL_NO=mt.SERIAL AND COM_ID=@ComId
+              ORDER BY TRANS_ID DESC)                                AS LColorReading
+         FROM TBL_MACHINE_TRANSACTIONS mt
+         INNER JOIN MTBL_MACHINE_MASTER mm
+             ON mt.COM_ID=mm.COM_ID AND mt.MACHINE_PN=mm.MACHINE_ID
+         INNER JOIN TBL_CUS_AGREEMENT ag
+             ON mt.COM_ID=ag.COM_ID AND mt.AG_ID=ag.AG_ID
+         WHERE mt.COM_ID=@ComId AND mt.CUS_ID=@CusId
+           AND mt.AG_ID=@AgId AND ag.MACHINE_TYPE='COLOR'
+         ORDER BY mt.P_NO"
+
+        Const meterReadingSql As String =
+        "SELECT START_MR, END_MR, COPIES, WAISTAGE,
+                C_START_MR, C_END_MR, C_COPIES, C_WAISTAGE
+         FROM TBL_TBL_METER_READING_DET_COLOR
+         WHERE COM_ID=@ComId AND AG_ID=@AgId AND CUS_ID=@CusId
+           AND SERIAL_NO=@Serial
+           AND PERIOD_START=@PeriodStart AND PERIOD_END=@PeriodEnd"
+
+        ' Fetch both BW and Color pending MR in one query per serial
+        Const pendingMRSql As String =
+        "SELECT START_MR, START_MR_COLOR
+         FROM TBL_MACHINE_TRANSACTIONS
+         WHERE COM_ID=@ComId AND SERIAL=@Serial
+           AND SMR_ADUJESTED_STATUS='PENDING CAPTURE'"
+
+        Const agreementDetailSql As String =
+        "SELECT CUS_TYPE, BILLING_METHOD, SLAB_METHOD, BILLING_PERIOD,
+                AG_PERIOD_START, AG_PERIOD_END, INV_STATUS,
+                MACHINE_TYPE, AG_RENTAL_PRICE, REP_CODE
+         FROM TBL_CUS_AGREEMENT
+         WHERE COM_ID=@ComId AND CUS_CODE=@CusId AND AG_ID=@AgId"
 
         Try
+            Using conn As New SqlConnection(connectionString)
+                conn.Open()
+                Dim baseParams = New With {.ComId = comId, .AgId = agId, .CusId = cusId}
+                Dim periodParams = New With {
+                    .ComId = comId, .AgId = agId, .CusId = cusId,
+                    .PeriodStart = dtpStart.Value.Date,
+                    .PeriodEnd = dtpEnd.Value.Date
+                }
 
-            '// get billing period
-            dbConnections.sqlCommand.Parameters.Clear()
-            strSQL = "SELECT    ISNULL( BILLING_PERIOD,1) FROM         TBL_CUS_AGREEMENT WHERE     (AG_ID = '" & Trim(txtSelectedAG.Text) & "') and (COM_ID = '" & globalVariables.selectedCompanyID & "')"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            BillingPeriod = dbConnections.sqlCommand.ExecuteScalar
+                ' --- 1) Billing period + last billing date (one multi-query round-trip) ---
+                Dim billingPeriod As Integer
+                Dim lastBillingDate As DateTime
 
-            '// get last billing date range
-            strSQL = "SELECT   ISNULL( MAX(PERIOD_START),GETDATE()) AS Expr1  FROM         TBL_TBL_METER_READING_DET WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "')"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            LastBillingDate = dbConnections.sqlCommand.ExecuteScalar
+                Using multi = conn.QueryMultiple(
+                    billingPeriodSql & ";" & lastBillingDateSql, baseParams)
+                    billingPeriod = multi.ReadFirst(Of Integer)()
+                    lastBillingDate = multi.ReadFirst(Of DateTime)()
+                End Using
 
-            'dbConnections.sqlCommand.Parameters.Clear()
-            'strSQL = "SELECT     CUS_NAME, CUS_ADD1, CUS_ADD2 FROM         MTBL_CUSTOMER_MASTER WHERE     (COM_ID =@COM_ID) AND (CUS_ID =@CUS_ID)"
-            'dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            'dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-            'dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
-            'dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-            'While dbConnections.dReader.Read
-
-            '    txLocation1.Text = dbConnections.dReader.Item("CUS_NAME")
-            '    txtLocation2.Text = dbConnections.dReader.Item("CUS_ADD1")
-            '    txtLocation3.Text = dbConnections.dReader.Item("CUS_ADD2")
-            'End While
-            'dbConnections.dReader.Close()
-
-
-            If globalVariables.selectedCompanyID = "003" Then
-                dbConnections.sqlCommand.Parameters.Clear()
-                strSQL = "SELECT     CUS_NAME, CUS_ADD1, CUS_ADD2 FROM         MTBL_CUSTOMER_MASTER WHERE     (COM_ID =@COM_ID) AND (CUS_ID =@CUS_ID)"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
-                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-                While dbConnections.dReader.Read
-
-                    txLocation1.Text = dbConnections.dReader.Item("CUS_NAME")
-                    txtLocation2.Text = dbConnections.dReader.Item("CUS_ADD1")
-                    txtLocation3.Text = dbConnections.dReader.Item("CUS_ADD2")
-                End While
-                dbConnections.dReader.Close()
-            Else '// this will take machine location as invoice address
-
-                dbConnections.sqlCommand.Parameters.Clear()
-                strSQL = "SELECT     TOP (1) M_LOC1, M_LOC2, M_LOC3 FROM         TBL_MACHINE_TRANSACTIONS  WHERE     (COM_ID = @COM_ID) AND (AG_ID = @AG_ID)"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
-                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-                While dbConnections.dReader.Read
-
-                    txLocation1.Text = dbConnections.dReader.Item("M_LOC1")
-                    txtLocation2.Text = dbConnections.dReader.Item("M_LOC2")
-                    txtLocation3.Text = dbConnections.dReader.Item("M_LOC3")
-                End While
-                dbConnections.dReader.Close()
-
-            End If
-
-            dbConnections.sqlCommand.Parameters.Clear()
-            Dim IsInvoiced As Boolean = False
-            strSQL = "SELECT CASE WHEN EXISTS (SELECT INV_NO FROM TBL_INVOICE_MASTER WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') AND (INV_PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (INV_PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "')) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-
-            dbConnections.sqlCommand.CommandText = strSQL
-            If dbConnections.sqlCommand.ExecuteScalar Then
-                IsInvoiced = True
-            Else
-                IsInvoiced = False
-            End If
-
-
-
-
-
-            strSQL = "SELECT  DISTINCT   MTBL_MACHINE_MASTER.MACHINE_MAKE, MTBL_MACHINE_MASTER.MACHINE_MODEL, TBL_MACHINE_TRANSACTIONS.SERIAL, TBL_MACHINE_TRANSACTIONS.P_NO,  TBL_MACHINE_TRANSACTIONS.M_DEPT, (SELECT     TOP (1) ISNULL(END_MR, 0) AS Expr1  FROM          TBL_TBL_METER_READING_DET_COLOR WHERE      (SERIAL_NO = TBL_MACHINE_TRANSACTIONS.SERIAL) AND (COM_ID = '" & globalVariables.selectedCompanyID & "')  ORDER BY TRANS_ID DESC) AS 'L_READING', (SELECT     TOP (1) ISNULL(C_END_MR, 0) AS Expr2  FROM          TBL_TBL_METER_READING_DET_COLOR AS TBL_TBL_METER_READING_DET_COLOR_1  WHERE      (SERIAL_NO = TBL_MACHINE_TRANSACTIONS.SERIAL) AND (COM_ID = '" & globalVariables.selectedCompanyID & "')  ORDER BY TRANS_ID DESC) AS 'L_COLOR_READING', TBL_CUS_AGREEMENT.MACHINE_TYPE FROM         TBL_MACHINE_TRANSACTIONS INNER JOIN  MTBL_MACHINE_MASTER ON TBL_MACHINE_TRANSACTIONS.COM_ID = MTBL_MACHINE_MASTER.COM_ID AND  TBL_MACHINE_TRANSACTIONS.MACHINE_PN = MTBL_MACHINE_MASTER.MACHINE_ID INNER JOIN TBL_CUS_AGREEMENT ON TBL_MACHINE_TRANSACTIONS.COM_ID = TBL_CUS_AGREEMENT.COM_ID WHERE     (TBL_MACHINE_TRANSACTIONS.COM_ID = '" & globalVariables.selectedCompanyID & "') AND (TBL_MACHINE_TRANSACTIONS.CUS_ID = @CUS_ID) AND (TBL_MACHINE_TRANSACTIONS.AG_ID = @AG_ID) and TBL_CUS_AGREEMENT.MACHINE_TYPE = 'COLOR' ORDER BY TBL_MACHINE_TRANSACTIONS.P_NO"
-
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
-
-
-            Dim da As New SqlDataAdapter(sqlCommand)
-
-            Dim ds As New DataSet()
-
-            da.Fill(ds)
-
-
-            For i = 0 To ds.Tables(0).Rows.Count - 1
-                'ds.Tables(0).Rows(i).Item(0)
-                SN = ds.Tables(0).Rows(i).Item(2)
-                If IsDBNull(ds.Tables(0).Rows(i).Item(3)) Then
-                    PNo = ""
-                Else
-                    PNo = ds.Tables(0).Rows(i).Item(3)
+                ' --- 2) Location (one query, branch decided by company) ---
+                Dim locSql = If(comId = "003", customerLocationSql, machineLocationSql)
+                Dim loc = conn.QueryFirstOrDefault(locSql, baseParams)
+                If loc IsNot Nothing Then
+                    txLocation1.Text = CStr(loc.Loc1)
+                    txtLocation2.Text = CStr(loc.Loc2)
+                    txtLocation3.Text = CStr(loc.Loc3)
                 End If
 
-                MLoc = ds.Tables(0).Rows(i).Item(4)
-                MkeModel = ds.Tables(0).Rows(i).Item(1)
-                dbConnections.dReader.Close()
-                strSQL = "SELECT     START_MR, END_MR, COPIES, WAISTAGE, C_START_MR, C_END_MR, C_COPIES, C_WAISTAGE FROM         TBL_TBL_METER_READING_DET_COLOR WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') AND (SERIAL_NO = '" & SN & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "')"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
-                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+                ' --- 3) Invoiced check ---
+                Dim isInvoiced As Boolean = conn.ExecuteScalar(Of Boolean)(
+                isInvoicedSql, periodParams)
 
-                While dbConnections.dReader.Read
-                    IsMRhave = True
-                    If IsDBNull(dbConnections.dReader.Item("START_MR")) Then
-                        If IsDBNull(ds.Tables(0).Rows(i).Item(5)) Then
-                            lastMR = 0
+                ' --- 4) Machine list ---
+                Dim machines = (conn.Query(machineListSql, baseParams)).AsList()
+
+                dgMR.Rows.Clear()
+
+                For Each m In machines
+                    Dim serial As String = CStr(m.Serial)
+                    Dim pNo As String = If(String.IsNullOrEmpty(CStr(m.PNo)), "0", CStr(m.PNo))
+                    Dim makeModel As String = CStr(m.MakeModel)
+                    Dim mLoc As String = CStr(m.MLoc)
+
+                    Dim lastMR As Integer = 0
+                    Dim lastMRColor As Integer = 0
+                    Dim endReading As String = ""
+                    Dim colorEnd As String = ""
+                    Dim waistage As String = ""
+                    Dim colorWaste As String = ""
+                    Dim copies As Integer = 0
+                    Dim colorCopies As Integer = 0
+                    Dim hasMR As Boolean = False
+
+                    ' --- 5) Per-serial meter reading for this period ---
+                    Dim mr = conn.QueryFirstOrDefault(
+                    meterReadingSql,
+                    New With {
+                        .ComId = comId, .AgId = agId, .CusId = cusId,
+                        .Serial = serial,
+                        .PeriodStart = dtpStart.Value.Date,
+                        .PeriodEnd = dtpEnd.Value.Date
+                    })
+
+                    If mr IsNot Nothing Then
+                        hasMR = True
+                        lastMR = If(mr.START_MR Is Nothing, CInt(m.LReading), CInt(mr.START_MR))
+                        lastMRColor = If(mr.C_START_MR Is Nothing, CInt(m.LColorReading), CInt(mr.C_START_MR))
+                        endReading = If(mr.END_MR Is Nothing, "", CStr(mr.END_MR))
+                        colorEnd = If(mr.C_END_MR Is Nothing, "", CStr(mr.C_END_MR))
+                        waistage = If(mr.WAISTAGE Is Nothing, "", CStr(mr.WAISTAGE))
+                        colorWaste = If(mr.C_WAISTAGE Is Nothing, "", CStr(mr.C_WAISTAGE))
+                        copies = If(mr.COPIES Is Nothing, 0, CInt(mr.COPIES))
+                        colorCopies = If(mr.C_COPIES Is Nothing, 0, CInt(mr.C_COPIES))
+                    End If
+
+                    ' --- 6) Fallback: pending capture (merged BW + Color — single query) ---
+                    If Not hasMR Then
+                        Dim pending = conn.QueryFirstOrDefault(
+                        pendingMRSql,
+                        New With {.ComId = comId, .Serial = serial})
+
+                        If pending IsNot Nothing Then
+                            lastMR = If(pending.START_MR Is Nothing, CInt(m.LReading), CInt(pending.START_MR))
+                            lastMRColor = If(pending.START_MR_COLOR Is Nothing, CInt(m.LColorReading), CInt(pending.START_MR_COLOR))
                         Else
-                            lastMR = ds.Tables(0).Rows(i).Item(5)
+                            lastMR = If(m.LReading Is Nothing, 0, CInt(m.LReading))
+                            lastMRColor = If(m.LColorReading Is Nothing, 0, CInt(m.LColorReading))
                         End If
-                    Else
-                        lastMR = dbConnections.dReader.Item("START_MR")
-                    End If
-                    If IsDBNull(dbConnections.dReader.Item("C_START_MR")) Then
-                        If IsDBNull(ds.Tables(0).Rows(i).Item(6)) Then
-                            LastMRColor = 0
-                        Else
-                            LastMRColor = ds.Tables(0).Rows(i).Item(6)
-                        End If
-                    Else
-                        LastMRColor = dbConnections.dReader.Item("C_START_MR")
-                    End If
-                    If IsDBNull(dbConnections.dReader.Item("END_MR")) Then
-                        EndReading = ""
-                    Else
-                        EndReading = dbConnections.dReader.Item("END_MR")
-                    End If
-                    If IsDBNull(dbConnections.dReader.Item("C_END_MR")) Then
-                        ColorEndReading = ""
-                    Else
-                        ColorEndReading = dbConnections.dReader.Item("C_END_MR")
                     End If
 
-                    If IsDBNull(dbConnections.dReader.Item("WAISTAGE")) Then
-                        Waistage = ""
-                    Else
-                        Waistage = dbConnections.dReader.Item("WAISTAGE")
-                    End If
-                    If IsDBNull(dbConnections.dReader.Item("C_WAISTAGE")) Then
-                        ColorWaistage = ""
-                    Else
-                        ColorWaistage = dbConnections.dReader.Item("C_WAISTAGE")
-                    End If
-                    If IsDBNull(dbConnections.dReader.Item("COPIES")) Then
-                        Copies = 0
-                    Else
-                        Copies = dbConnections.dReader.Item("COPIES")
-                    End If
+                    populatreDatagrid(makeModel, serial, pNo, mLoc,
+                                      lastMR, endReading, copies, waistage,
+                                      lastMRColor, colorEnd, colorCopies, colorWaste)
+                Next
 
-                    If IsDBNull(dbConnections.dReader.Item("C_COPIES")) Then
-                        ColorCopies = 0
-                    Else
-                        ColorCopies = dbConnections.dReader.Item("C_COPIES")
-                    End If
+                ' --- 7) Agreement details ---
+                Dim ag = conn.QueryFirstOrDefault(agreementDetailSql, baseParams)
+                If ag IsNot Nothing Then
+                    ' Billing method radio buttons
+                    rbtnActual.Checked = (ag.BILLING_METHOD = "ACTUAL")
+                    rbtnCommitment.Checked = (ag.BILLING_METHOD = "COMMITMENT")
+                    rbtnRental.Checked = (ag.BILLING_METHOD = "RENTAL")
 
+                    ' Invoice status radio buttons
+                    rbtnInvStatusAll.Checked = (ag.INV_STATUS = "ALL")
+                    rbtnInvStatusIndividual.Checked = (ag.INV_STATUS = "INDIVIDUAL")
 
-                End While
-                dbConnections.dReader.Close()
-
-                If IsMRhave = False Then
-                    Dim hasRecord As Boolean = False
-                    '// get First meter reading  form master transaction
-                    strSQL = "SELECT     START_MR FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = @COM_ID) AND (SERIAL = @SERIAL) AND (SMR_ADUJESTED_STATUS='PENDING CAPTURE')"
-                    dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(SN))
-                    dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-                    While dbConnections.dReader.Read
-                        hasRecord = True
-                        If IsDBNull(dbConnections.dReader.Item("START_MR")) Then
-                            lastMR = lastMR
-                        Else
-                            lastMR = dbConnections.dReader.Item("START_MR")
-                        End If
-
-                    End While
-
-                    dbConnections.dReader.Close()
-
-
-                    If hasRecord = False Then
-                        If IsDBNull(ds.Tables(0).Rows(i).Item(5)) Then
-                            lastMR = 0
-                        Else
-                            lastMR = ds.Tables(0).Rows(i).Item(5)
-                        End If
-
-                    End If
-
-                    hasRecord = False
-                    '// get First meter reading  form master transaction
-                    strSQL = "SELECT     START_MR_COLOR FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = @COM_ID) AND (SERIAL = @SERIAL) AND (SMR_ADUJESTED_STATUS='PENDING CAPTURE')"
-                    dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(SN))
-                    dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-                    While dbConnections.dReader.Read
-                        hasRecord = True
-                        If IsDBNull(dbConnections.dReader.Item("START_MR_COLOR")) Then
-                            LastMRColor = LastMRColor
-                        Else
-                            LastMRColor = dbConnections.dReader.Item("START_MR_COLOR")
-                        End If
-
-                    End While
-
-                    dbConnections.dReader.Close()
-                    If hasRecord = False Then
-                        If IsDBNull(ds.Tables(0).Rows(i).Item(6)) Then
-                            LastMRColor = 0
-                        Else
-                            LastMRColor = ds.Tables(0).Rows(i).Item(6)
-                        End If
-
-                    End If
-
+                    txtSlabMethod.Text = If(ag.SLAB_METHOD Is Nothing, "", CStr(ag.SLAB_METHOD))
+                    txtBilPeriod.Text = If(ag.BILLING_PERIOD Is Nothing, "", CStr(ag.BILLING_PERIOD))
+                    txtRental.Text = If(ag.AG_RENTAL_PRICE Is Nothing, "", Format(CDbl(ag.AG_RENTAL_PRICE), "0.00"))
+                    txtRepCode.Text = If(ag.REP_CODE Is Nothing, "", CStr(ag.REP_CODE))
                 End If
+            End Using
 
-                If PNo = "" Then
-                    PNo = "0"
-                End If
-                populatreDatagrid(MkeModel, SN, PNo, MLoc, lastMR, EndReading, Copies, Waistage, LastMRColor, ColorEndReading, ColorCopies, ColorWaistage)
-
-
-            Next
-
-
-
-
-            'strSQL = "SELECT    count( END_MR) FROM         TBL_TBL_METER_READING_DET WHERE     (PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "') AND (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "')"
-            'dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-
-            'If IsDBNull(dbConnections.sqlCommand.ExecuteScalar) Then
-            '    IsPrevousRecordLoading = False
-            'Else
-            '    If dbConnections.sqlCommand.ExecuteScalar = 0 Then
-            '        IsPrevousRecordLoading = False
-            '    Else
-            '        IsPrevousRecordLoading = True
-            '    End If
-            'End If
-
-
-
-            'Dim CurrentDate As DateTime = Today.Date
-            'Dim dateVal As Integer
-            'Dim MonthVal As Integer
-            'Dim YearVal As Integer
-            'Dim NewStartDate As DateTime
-            'Dim NewEndDate As DateTime
-            'dateVal = BillingPeriod
-            'MonthVal = CurrentDate.Month
-            'YearVal = CurrentDate.Year
-
-            'NewStartDate = CDate(dateVal & "/" & MonthVal & "/" & YearVal)
-            'NewEndDate = NewStartDate.AddMonths(1)
-            'dtpStart.Value = NewStartDate
-            'dtpEnd.Value = NewEndDate
-
-
-
-
-            'dbConnections.sqlCommand.Parameters.Clear()
-
-            'For Each row As DataGridViewRow In dgMR.Rows
-            '    dbConnections.sqlCommand.Parameters.Clear()
-            '    strSQL = "SELECT     END_MR, COPIES, WAISTAGE FROM         TBL_TBL_METER_READING_DET WHERE     (PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "') AND (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') and (SERIAL_NO='" & Trim(dgMR.Rows(row.Index).Cells("SN").Value) & "')"
-            '    dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            '    dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-            '    While dbConnections.dReader.Read
-
-            '        If Not IsDBNull(dbConnections.dReader.Item("END_MR")) Then
-            '            dgMR.Rows(row.Index).Cells("END_MR").Value = dbConnections.dReader.Item("END_MR")
-            '        End If
-
-            '        If Not IsDBNull(dbConnections.dReader.Item("COPIES")) Then
-            '            dgMR.Rows(row.Index).Cells("MR_COPIES").Value = dbConnections.dReader.Item("COPIES")
-            '        End If
-
-            '        If Not IsDBNull(dbConnections.dReader.Item("WAISTAGE")) Then
-            '            dgMR.Rows(row.Index).Cells("WAISTAGE").Value = dbConnections.dReader.Item("WAISTAGE")
-            '        End If
-
-            '    End While
-            '    dbConnections.dReader.Close()
-
-            'Next
-
-
-
-
-
-
-            Try
-                dbConnections.sqlCommand.Parameters.Clear()
-                strSQL = "SELECT     CUS_TYPE, BILLING_METHOD, SLAB_METHOD, BILLING_PERIOD, AG_PERIOD_START,AG_PERIOD_END,INV_STATUS,MACHINE_TYPE,AG_RENTAL_PRICE,REP_CODE FROM  TBL_CUS_AGREEMENT WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (CUS_CODE = @CUS_CODE) AND (AG_ID = @AG_ID)"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_CODE", Trim(txtCustomerID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
-                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-                While dbConnections.dReader.Read
-
-
-
-
-
-                    If IsDBNull(dbConnections.dReader.Item("BILLING_METHOD")) Then
-                        rbtnActual.Checked = False
-                        rbtnCommitment.Checked = False
-                        rbtnRental.Checked = False
-                    Else
-                        rbtnActual.Checked = False
-                        rbtnCommitment.Checked = False
-                        rbtnRental.Checked = False
-
-                        If dbConnections.dReader.Item("BILLING_METHOD") = "COMMITMENT" Then
-                            rbtnCommitment.Checked = True
-                        ElseIf dbConnections.dReader.Item("BILLING_METHOD") = "ACTUAL" Then
-                            rbtnActual.Checked = True
-                        ElseIf dbConnections.dReader.Item("BILLING_METHOD") = "RENTAL" Then
-                            rbtnRental.Checked = True
-                        Else
-                            rbtnActual.Checked = False
-                            rbtnCommitment.Checked = False
-                            rbtnRental.Checked = False
-                        End If
-
-                    End If
-
-                    If IsDBNull(dbConnections.dReader.Item("SLAB_METHOD")) Then
-                        txtSlabMethod.Text = ""
-                    Else
-                        txtSlabMethod.Text = dbConnections.dReader.Item("SLAB_METHOD")
-                    End If
-
-
-                    If IsDBNull(dbConnections.dReader.Item("BILLING_PERIOD")) Then
-                        txtBilPeriod.Text = ""
-                    Else
-                        txtBilPeriod.Text = dbConnections.dReader.Item("BILLING_PERIOD")
-                    End If
-
-
-                    If IsDBNull(dbConnections.dReader.Item("INV_STATUS")) Then
-                        rbtnInvStatusAll.Checked = False
-                        rbtnInvStatusIndividual.Checked = False
-                    Else
-                        If dbConnections.dReader.Item("INV_STATUS") = "ALL" Then
-                            rbtnInvStatusAll.Checked = True
-                        ElseIf dbConnections.dReader.Item("INV_STATUS") = "INDIVIDUAL" Then
-                            rbtnInvStatusIndividual.Checked = True
-                        Else
-                            rbtnInvStatusAll.Checked = False
-                            rbtnInvStatusIndividual.Checked = False
-                        End If
-
-                    End If
-
-                    If IsDBNull(dbConnections.dReader.Item("AG_RENTAL_PRICE")) Then
-                        txtRental.Text = ""
-                    Else
-                        txtRental.Text = Format(dbConnections.dReader.Item("AG_RENTAL_PRICE"), "0.00")
-                    End If
-
-
-                    If IsDBNull(dbConnections.dReader.Item("REP_CODE")) Then
-                        txtRepCode.Text = ""
-                    Else
-                        txtRepCode.Text = dbConnections.dReader.Item("REP_CODE")
-                    End If
-
-                End While
-                dbConnections.dReader.Close()
-            Catch ex As Exception
-                'MsgBox(ex.Message)
-            End Try
-
-            LoadCommitments(Trim(txtSelectedAG.Text), Trim(txtCustomerID.Text))
-
-
-
+            LoadCommitments(txtSelectedAG.Text.Trim(), txtCustomerID.Text.Trim())
             CalculateInvoiceValue()
-
-            GetLastInvInfo(Trim(txtCustomerID.Text), Trim(txtSelectedAG.Text))
-
+            GetLastInvInfo(txtCustomerID.Text.Trim(), txtSelectedAG.Text.Trim())
         Catch ex As Exception
-            'MsgBox(ex.Message)
+            MsgBox(ex.Message)
         End Try
-
-
     End Sub
+
+    'Private Sub LoadSelectedAgreement()
+
+    '    If Trim(txtSelectedAG.Text) = "" Then
+    '        Exit Sub
+    '    End If
+    '    Dim MkeModel As String
+    '    Dim SN As String
+    '    Dim PNo As String
+    '    Dim MLoc As String
+
+    '    Dim BillingPeriod As Integer = 1
+    '    Dim LastBillingDate As DateTime
+    '    Dim IsPrevousRecordLoading As Boolean = False
+    '    Dim lastMR As Integer = 0
+    '    Dim LastMRColor As Integer = 0
+
+    '    Dim EndReading As String = ""
+    '    Dim ColorEndReading As String = ""
+    '    Dim Waistage As String = ""
+    '    Dim ColorWaistage As String = ""
+    '    Dim Copies As Integer = 0
+    '    Dim ColorCopies As Integer = 0
+
+    '    dgMR.Rows.Clear()
+    '    Dim IsMRhave As Boolean = False
+
+    '    Try
+
+    '        '// get billing period
+    '        dbConnections.sqlCommand.Parameters.Clear()
+    '        strSQL = "SELECT    ISNULL( BILLING_PERIOD,1) FROM         TBL_CUS_AGREEMENT WHERE     (AG_ID = '" & Trim(txtSelectedAG.Text) & "') and (COM_ID = '" & globalVariables.selectedCompanyID & "')"
+    '        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '        BillingPeriod = dbConnections.sqlCommand.ExecuteScalar
+
+    '        '// get last billing date range
+    '        strSQL = "SELECT   ISNULL( MAX(PERIOD_START),GETDATE()) AS Expr1  FROM         TBL_TBL_METER_READING_DET WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "')"
+    '        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '        LastBillingDate = dbConnections.sqlCommand.ExecuteScalar
+
+    '        'dbConnections.sqlCommand.Parameters.Clear()
+    '        'strSQL = "SELECT     CUS_NAME, CUS_ADD1, CUS_ADD2 FROM         MTBL_CUSTOMER_MASTER WHERE     (COM_ID =@COM_ID) AND (CUS_ID =@CUS_ID)"
+    '        'dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '        'dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+    '        'dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
+    '        'dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '        'While dbConnections.dReader.Read
+
+    '        '    txLocation1.Text = dbConnections.dReader.Item("CUS_NAME")
+    '        '    txtLocation2.Text = dbConnections.dReader.Item("CUS_ADD1")
+    '        '    txtLocation3.Text = dbConnections.dReader.Item("CUS_ADD2")
+    '        'End While
+    '        'dbConnections.dReader.Close()
+
+
+    '        If globalVariables.selectedCompanyID = "003" Then
+    '            dbConnections.sqlCommand.Parameters.Clear()
+    '            strSQL = "SELECT     CUS_NAME, CUS_ADD1, CUS_ADD2 FROM         MTBL_CUSTOMER_MASTER WHERE     (COM_ID =@COM_ID) AND (CUS_ID =@CUS_ID)"
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
+    '            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '            While dbConnections.dReader.Read
+
+    '                txLocation1.Text = dbConnections.dReader.Item("CUS_NAME")
+    '                txtLocation2.Text = dbConnections.dReader.Item("CUS_ADD1")
+    '                txtLocation3.Text = dbConnections.dReader.Item("CUS_ADD2")
+    '            End While
+    '            dbConnections.dReader.Close()
+    '        Else '// this will take machine location as invoice address
+
+    '            dbConnections.sqlCommand.Parameters.Clear()
+    '            strSQL = "SELECT     TOP (1) M_LOC1, M_LOC2, M_LOC3 FROM         TBL_MACHINE_TRANSACTIONS  WHERE     (COM_ID = @COM_ID) AND (AG_ID = @AG_ID)"
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
+    '            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '            While dbConnections.dReader.Read
+
+    '                txLocation1.Text = dbConnections.dReader.Item("M_LOC1")
+    '                txtLocation2.Text = dbConnections.dReader.Item("M_LOC2")
+    '                txtLocation3.Text = dbConnections.dReader.Item("M_LOC3")
+    '            End While
+    '            dbConnections.dReader.Close()
+
+    '        End If
+
+    '        dbConnections.sqlCommand.Parameters.Clear()
+    '        Dim IsInvoiced As Boolean = False
+    '        strSQL = "SELECT CASE WHEN EXISTS (SELECT INV_NO FROM TBL_INVOICE_MASTER WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') AND (INV_PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (INV_PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "')) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
+    '        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+
+    '        dbConnections.sqlCommand.CommandText = strSQL
+    '        If dbConnections.sqlCommand.ExecuteScalar Then
+    '            IsInvoiced = True
+    '        Else
+    '            IsInvoiced = False
+    '        End If
+
+
+
+
+
+    '        strSQL = "SELECT  DISTINCT   MTBL_MACHINE_MASTER.MACHINE_MAKE, MTBL_MACHINE_MASTER.MACHINE_MODEL, TBL_MACHINE_TRANSACTIONS.SERIAL, TBL_MACHINE_TRANSACTIONS.P_NO,  TBL_MACHINE_TRANSACTIONS.M_DEPT, (SELECT     TOP (1) ISNULL(END_MR, 0) AS Expr1  FROM          TBL_TBL_METER_READING_DET_COLOR WHERE      (SERIAL_NO = TBL_MACHINE_TRANSACTIONS.SERIAL) AND (COM_ID = '" & globalVariables.selectedCompanyID & "')  ORDER BY TRANS_ID DESC) AS 'L_READING', (SELECT     TOP (1) ISNULL(C_END_MR, 0) AS Expr2  FROM          TBL_TBL_METER_READING_DET_COLOR AS TBL_TBL_METER_READING_DET_COLOR_1  WHERE      (SERIAL_NO = TBL_MACHINE_TRANSACTIONS.SERIAL) AND (COM_ID = '" & globalVariables.selectedCompanyID & "')  ORDER BY TRANS_ID DESC) AS 'L_COLOR_READING', TBL_CUS_AGREEMENT.MACHINE_TYPE FROM         TBL_MACHINE_TRANSACTIONS INNER JOIN  MTBL_MACHINE_MASTER ON TBL_MACHINE_TRANSACTIONS.COM_ID = MTBL_MACHINE_MASTER.COM_ID AND  TBL_MACHINE_TRANSACTIONS.MACHINE_PN = MTBL_MACHINE_MASTER.MACHINE_ID INNER JOIN TBL_CUS_AGREEMENT ON TBL_MACHINE_TRANSACTIONS.COM_ID = TBL_CUS_AGREEMENT.COM_ID WHERE     (TBL_MACHINE_TRANSACTIONS.COM_ID = '" & globalVariables.selectedCompanyID & "') AND (TBL_MACHINE_TRANSACTIONS.CUS_ID = @CUS_ID) AND (TBL_MACHINE_TRANSACTIONS.AG_ID = @AG_ID) and TBL_CUS_AGREEMENT.MACHINE_TYPE = 'COLOR' ORDER BY TBL_MACHINE_TRANSACTIONS.P_NO"
+
+    '        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
+
+
+    '        Dim da As New SqlDataAdapter(sqlCommand)
+
+    '        Dim ds As New DataSet()
+
+    '        da.Fill(ds)
+
+
+    '        For i = 0 To ds.Tables(0).Rows.Count - 1
+    '            'ds.Tables(0).Rows(i).Item(0)
+    '            SN = ds.Tables(0).Rows(i).Item(2)
+    '            If IsDBNull(ds.Tables(0).Rows(i).Item(3)) Then
+    '                PNo = ""
+    '            Else
+    '                PNo = ds.Tables(0).Rows(i).Item(3)
+    '            End If
+
+    '            MLoc = ds.Tables(0).Rows(i).Item(4)
+    '            MkeModel = ds.Tables(0).Rows(i).Item(1)
+    '            dbConnections.dReader.Close()
+    '            strSQL = "SELECT     START_MR, END_MR, COPIES, WAISTAGE, C_START_MR, C_END_MR, C_COPIES, C_WAISTAGE FROM         TBL_TBL_METER_READING_DET_COLOR WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') AND (SERIAL_NO = '" & SN & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "')"
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
+    '            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '            While dbConnections.dReader.Read
+    '                IsMRhave = True
+    '                If IsDBNull(dbConnections.dReader.Item("START_MR")) Then
+    '                    If IsDBNull(ds.Tables(0).Rows(i).Item(5)) Then
+    '                        lastMR = 0
+    '                    Else
+    '                        lastMR = ds.Tables(0).Rows(i).Item(5)
+    '                    End If
+    '                Else
+    '                    lastMR = dbConnections.dReader.Item("START_MR")
+    '                End If
+    '                If IsDBNull(dbConnections.dReader.Item("C_START_MR")) Then
+    '                    If IsDBNull(ds.Tables(0).Rows(i).Item(6)) Then
+    '                        LastMRColor = 0
+    '                    Else
+    '                        LastMRColor = ds.Tables(0).Rows(i).Item(6)
+    '                    End If
+    '                Else
+    '                    LastMRColor = dbConnections.dReader.Item("C_START_MR")
+    '                End If
+    '                If IsDBNull(dbConnections.dReader.Item("END_MR")) Then
+    '                    EndReading = ""
+    '                Else
+    '                    EndReading = dbConnections.dReader.Item("END_MR")
+    '                End If
+    '                If IsDBNull(dbConnections.dReader.Item("C_END_MR")) Then
+    '                    ColorEndReading = ""
+    '                Else
+    '                    ColorEndReading = dbConnections.dReader.Item("C_END_MR")
+    '                End If
+
+    '                If IsDBNull(dbConnections.dReader.Item("WAISTAGE")) Then
+    '                    Waistage = ""
+    '                Else
+    '                    Waistage = dbConnections.dReader.Item("WAISTAGE")
+    '                End If
+    '                If IsDBNull(dbConnections.dReader.Item("C_WAISTAGE")) Then
+    '                    ColorWaistage = ""
+    '                Else
+    '                    ColorWaistage = dbConnections.dReader.Item("C_WAISTAGE")
+    '                End If
+    '                If IsDBNull(dbConnections.dReader.Item("COPIES")) Then
+    '                    Copies = 0
+    '                Else
+    '                    Copies = dbConnections.dReader.Item("COPIES")
+    '                End If
+
+    '                If IsDBNull(dbConnections.dReader.Item("C_COPIES")) Then
+    '                    ColorCopies = 0
+    '                Else
+    '                    ColorCopies = dbConnections.dReader.Item("C_COPIES")
+    '                End If
+
+
+    '            End While
+    '            dbConnections.dReader.Close()
+
+    '            If IsMRhave = False Then
+    '                Dim hasRecord As Boolean = False
+    '                '// get First meter reading  form master transaction
+    '                strSQL = "SELECT     START_MR FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = @COM_ID) AND (SERIAL = @SERIAL) AND (SMR_ADUJESTED_STATUS='PENDING CAPTURE')"
+    '                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(SN))
+    '                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '                While dbConnections.dReader.Read
+    '                    hasRecord = True
+    '                    If IsDBNull(dbConnections.dReader.Item("START_MR")) Then
+    '                        lastMR = lastMR
+    '                    Else
+    '                        lastMR = dbConnections.dReader.Item("START_MR")
+    '                    End If
+
+    '                End While
+
+    '                dbConnections.dReader.Close()
+
+
+    '                If hasRecord = False Then
+    '                    If IsDBNull(ds.Tables(0).Rows(i).Item(5)) Then
+    '                        lastMR = 0
+    '                    Else
+    '                        lastMR = ds.Tables(0).Rows(i).Item(5)
+    '                    End If
+
+    '                End If
+
+    '                hasRecord = False
+    '                '// get First meter reading  form master transaction
+    '                strSQL = "SELECT     START_MR_COLOR FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = @COM_ID) AND (SERIAL = @SERIAL) AND (SMR_ADUJESTED_STATUS='PENDING CAPTURE')"
+    '                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(SN))
+    '                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '                While dbConnections.dReader.Read
+    '                    hasRecord = True
+    '                    If IsDBNull(dbConnections.dReader.Item("START_MR_COLOR")) Then
+    '                        LastMRColor = LastMRColor
+    '                    Else
+    '                        LastMRColor = dbConnections.dReader.Item("START_MR_COLOR")
+    '                    End If
+
+    '                End While
+
+    '                dbConnections.dReader.Close()
+    '                If hasRecord = False Then
+    '                    If IsDBNull(ds.Tables(0).Rows(i).Item(6)) Then
+    '                        LastMRColor = 0
+    '                    Else
+    '                        LastMRColor = ds.Tables(0).Rows(i).Item(6)
+    '                    End If
+
+    '                End If
+
+    '            End If
+
+    '            If PNo = "" Then
+    '                PNo = "0"
+    '            End If
+    '            populatreDatagrid(MkeModel, SN, PNo, MLoc, lastMR, EndReading, Copies, Waistage, LastMRColor, ColorEndReading, ColorCopies, ColorWaistage)
+
+
+    '        Next
+
+
+
+
+    '        'strSQL = "SELECT    count( END_MR) FROM         TBL_TBL_METER_READING_DET WHERE     (PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "') AND (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "')"
+    '        'dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+
+    '        'If IsDBNull(dbConnections.sqlCommand.ExecuteScalar) Then
+    '        '    IsPrevousRecordLoading = False
+    '        'Else
+    '        '    If dbConnections.sqlCommand.ExecuteScalar = 0 Then
+    '        '        IsPrevousRecordLoading = False
+    '        '    Else
+    '        '        IsPrevousRecordLoading = True
+    '        '    End If
+    '        'End If
+
+
+
+    '        'Dim CurrentDate As DateTime = Today.Date
+    '        'Dim dateVal As Integer
+    '        'Dim MonthVal As Integer
+    '        'Dim YearVal As Integer
+    '        'Dim NewStartDate As DateTime
+    '        'Dim NewEndDate As DateTime
+    '        'dateVal = BillingPeriod
+    '        'MonthVal = CurrentDate.Month
+    '        'YearVal = CurrentDate.Year
+
+    '        'NewStartDate = CDate(dateVal & "/" & MonthVal & "/" & YearVal)
+    '        'NewEndDate = NewStartDate.AddMonths(1)
+    '        'dtpStart.Value = NewStartDate
+    '        'dtpEnd.Value = NewEndDate
+
+
+
+
+    '        'dbConnections.sqlCommand.Parameters.Clear()
+
+    '        'For Each row As DataGridViewRow In dgMR.Rows
+    '        '    dbConnections.sqlCommand.Parameters.Clear()
+    '        '    strSQL = "SELECT     END_MR, COPIES, WAISTAGE FROM         TBL_TBL_METER_READING_DET WHERE     (PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (PERIOD_END = '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "') AND (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') and (SERIAL_NO='" & Trim(dgMR.Rows(row.Index).Cells("SN").Value) & "')"
+    '        '    dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '        '    dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+    '        '    While dbConnections.dReader.Read
+
+    '        '        If Not IsDBNull(dbConnections.dReader.Item("END_MR")) Then
+    '        '            dgMR.Rows(row.Index).Cells("END_MR").Value = dbConnections.dReader.Item("END_MR")
+    '        '        End If
+
+    '        '        If Not IsDBNull(dbConnections.dReader.Item("COPIES")) Then
+    '        '            dgMR.Rows(row.Index).Cells("MR_COPIES").Value = dbConnections.dReader.Item("COPIES")
+    '        '        End If
+
+    '        '        If Not IsDBNull(dbConnections.dReader.Item("WAISTAGE")) Then
+    '        '            dgMR.Rows(row.Index).Cells("WAISTAGE").Value = dbConnections.dReader.Item("WAISTAGE")
+    '        '        End If
+
+    '        '    End While
+    '        '    dbConnections.dReader.Close()
+
+    '        'Next
+
+
+
+
+
+
+    '        Try
+    '            dbConnections.sqlCommand.Parameters.Clear()
+    '            strSQL = "SELECT     CUS_TYPE, BILLING_METHOD, SLAB_METHOD, BILLING_PERIOD, AG_PERIOD_START,AG_PERIOD_END,INV_STATUS,MACHINE_TYPE,AG_RENTAL_PRICE,REP_CODE FROM  TBL_CUS_AGREEMENT WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (CUS_CODE = @CUS_CODE) AND (AG_ID = @AG_ID)"
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_CODE", Trim(txtCustomerID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtSelectedAG.Text))
+    '            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '            While dbConnections.dReader.Read
+
+
+
+
+
+    '                If IsDBNull(dbConnections.dReader.Item("BILLING_METHOD")) Then
+    '                    rbtnActual.Checked = False
+    '                    rbtnCommitment.Checked = False
+    '                    rbtnRental.Checked = False
+    '                Else
+    '                    rbtnActual.Checked = False
+    '                    rbtnCommitment.Checked = False
+    '                    rbtnRental.Checked = False
+
+    '                    If dbConnections.dReader.Item("BILLING_METHOD") = "COMMITMENT" Then
+    '                        rbtnCommitment.Checked = True
+    '                    ElseIf dbConnections.dReader.Item("BILLING_METHOD") = "ACTUAL" Then
+    '                        rbtnActual.Checked = True
+    '                    ElseIf dbConnections.dReader.Item("BILLING_METHOD") = "RENTAL" Then
+    '                        rbtnRental.Checked = True
+    '                    Else
+    '                        rbtnActual.Checked = False
+    '                        rbtnCommitment.Checked = False
+    '                        rbtnRental.Checked = False
+    '                    End If
+
+    '                End If
+
+    '                If IsDBNull(dbConnections.dReader.Item("SLAB_METHOD")) Then
+    '                    txtSlabMethod.Text = ""
+    '                Else
+    '                    txtSlabMethod.Text = dbConnections.dReader.Item("SLAB_METHOD")
+    '                End If
+
+
+    '                If IsDBNull(dbConnections.dReader.Item("BILLING_PERIOD")) Then
+    '                    txtBilPeriod.Text = ""
+    '                Else
+    '                    txtBilPeriod.Text = dbConnections.dReader.Item("BILLING_PERIOD")
+    '                End If
+
+
+    '                If IsDBNull(dbConnections.dReader.Item("INV_STATUS")) Then
+    '                    rbtnInvStatusAll.Checked = False
+    '                    rbtnInvStatusIndividual.Checked = False
+    '                Else
+    '                    If dbConnections.dReader.Item("INV_STATUS") = "ALL" Then
+    '                        rbtnInvStatusAll.Checked = True
+    '                    ElseIf dbConnections.dReader.Item("INV_STATUS") = "INDIVIDUAL" Then
+    '                        rbtnInvStatusIndividual.Checked = True
+    '                    Else
+    '                        rbtnInvStatusAll.Checked = False
+    '                        rbtnInvStatusIndividual.Checked = False
+    '                    End If
+
+    '                End If
+
+    '                If IsDBNull(dbConnections.dReader.Item("AG_RENTAL_PRICE")) Then
+    '                    txtRental.Text = ""
+    '                Else
+    '                    txtRental.Text = Format(dbConnections.dReader.Item("AG_RENTAL_PRICE"), "0.00")
+    '                End If
+
+
+    '                If IsDBNull(dbConnections.dReader.Item("REP_CODE")) Then
+    '                    txtRepCode.Text = ""
+    '                Else
+    '                    txtRepCode.Text = dbConnections.dReader.Item("REP_CODE")
+    '                End If
+
+    '            End While
+    '            dbConnections.dReader.Close()
+    '        Catch ex As Exception
+    '            'MsgBox(ex.Message)
+    '        End Try
+
+    '        LoadCommitments(Trim(txtSelectedAG.Text), Trim(txtCustomerID.Text))
+
+
+
+    '        CalculateInvoiceValue()
+
+    '        GetLastInvInfo(Trim(txtCustomerID.Text), Trim(txtSelectedAG.Text))
+
+    '    Catch ex As Exception
+    '        'MsgBox(ex.Message)
+    '    End Try
+
+
+    'End Sub
 
     Private Sub LoadCommitments(ByRef AG_ID As String, ByRef CUS_ID As String)
         dgBw.Rows.Clear()
@@ -2519,7 +2725,7 @@ Public Class frmColorMeaterReading
     Private Function GetSelectedVATP() As Double
         GetSelectedVATP = globalVariables.VAT
 
-        If dtpEnd.Value > CDate("11/30/2019") Then
+        If dtpEnd.Value > DateSerial(2019, 11, 30) Then
             GetSelectedVATP = globalVariables.VAT
         Else
             GetSelectedVATP = 15
@@ -2531,7 +2737,7 @@ Public Class frmColorMeaterReading
     Private Function GetSelectedNBT2P() As Double
         GetSelectedNBT2P = globalVariables.NBT2
 
-        If dtpEnd.Value > CDate("11/30/2019") Then
+        If dtpEnd.Value > DateSerial(2019, 11, 30) Then
             GetSelectedNBT2P = globalVariables.NBT2
         Else
             GetSelectedNBT2P = 2
@@ -2699,136 +2905,82 @@ Public Class frmColorMeaterReading
         If e.KeyCode = Keys.F2 Then Dim searchObj As New frmSearch(sender, Me.Tag)
     End Sub
 
-
-
-    Private Sub txtCustomerID_Validating(sender As Object, e As System.ComponentModel.CancelEventArgs) Handles txtCustomerID.Validating
-        errorEvent = "Reading information"
-        If IsFormClosing() Then Exit Sub
-        If Not isFormFocused Then Exit Sub
-        If Trim(sender.Text) = "" Then
-            e.Cancel = True
-            Exit Sub
+    Private Function LoadCustomerInformation()
+        If IsFormClosing() Then Exit Function
+        If Not isFormFocused Then Exit Function
+        If String.IsNullOrWhiteSpace(txtCustomerID.Text) Then
+            Return False
         End If
-        connectionStaet()
+
+        'getting customer information 
+        Const customerSql As String =
+        "SELECT cm.CUS_NAME, cm.VAT_TYPE_ID, vm.VAT_DESC, vm.IS_NBT, vm.IS_VAT
+         FROM MTBL_CUSTOMER_MASTER cm
+         INNER JOIN MTBL_VAT_MASTER vm
+             ON cm.COM_ID = vm.COM_ID AND cm.VAT_TYPE_ID = vm.VAT_TYPE_ID
+         WHERE cm.COM_ID = @COM_ID AND cm.CUS_ID = @CUS_ID"
+
+        Const agreementSql As String = "SELECT AG_ID, AG_NAME
+         From TBL_CUS_AGREEMENT
+         Where COM_ID = @COM_ID And CUS_CODE = @CUS_CODE And MACHINE_TYPE = 'COLOR'"
+
         Try
-            strSQL = "SELECT     MTBL_CUSTOMER_MASTER.CUS_NAME, MTBL_CUSTOMER_MASTER.VAT_TYPE_ID, MTBL_VAT_MASTER.VAT_DESC, MTBL_VAT_MASTER.IS_NBT, MTBL_VAT_MASTER.IS_VAT FROM         MTBL_CUSTOMER_MASTER INNER JOIN  MTBL_VAT_MASTER ON MTBL_CUSTOMER_MASTER.COM_ID = MTBL_VAT_MASTER.COM_ID AND MTBL_CUSTOMER_MASTER.VAT_TYPE_ID = MTBL_VAT_MASTER.VAT_TYPE_ID WHERE     (MTBL_CUSTOMER_MASTER.COM_ID = @COM_ID) AND (MTBL_CUSTOMER_MASTER.CUS_ID = @CUS_ID)"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                Dim customer = connection.QueryFirstOrDefaultAsync(customerSql, New With {
+                    .COM_ID = globalVariables.selectedCompanyID,
+                    .CUS_ID = txtCustomerID.Text.Trim()
+                })
 
-
-            While dbConnections.dReader.Read
-
-                txtCustomerName.Text = dbConnections.dReader.Item("CUS_NAME")
-                lblVatType.Text = dbConnections.dReader.Item("VAT_TYPE_ID")
-                lblVatTypeName.Text = dbConnections.dReader.Item("VAT_DESC")
-
-                If IsDBNull(dbConnections.dReader.Item("IS_NBT")) Then
-                    cbNBT.Checked = False
-                Else
-                    If dbConnections.dReader.Item("IS_NBT") Then
-                        cbNBT.Checked = True
-                    Else
-                        cbNBT.Checked = False
-                    End If
+                If customer Is Nothing Then
+                    Exit Function
                 End If
 
+                txtCustomerName.Text = customer.Result.CUS_NAME
+                lblVatType.Text = customer.Result.VAT_TYPE_ID
+                lblVatTypeName.Text = customer.Result.VAT_DESC
+                cbNBT.Checked = If(customer.Result.IS_NBT IsNot Nothing, CBool(customer.Result.IS_NBT), False)
+                cbVAT.Checked = If(customer.Result.IS_VAT IsNot Nothing, CBool(customer.Result.IS_VAT), False)
+                Dim agreements = (connection.Query(agreementSql, New With {
+                    .COM_ID = globalVariables.selectedCompanyID,
+                    .CUS_CODE = txtCustomerID.Text.Trim()})).ToList()
 
-                If IsDBNull(dbConnections.dReader.Item("IS_VAT")) Then
-                    cbVAT.Checked = False
-                Else
-                    If dbConnections.dReader.Item("IS_VAT") Then
-                        cbVAT.Checked = True
-                    Else
-                        cbVAT.Checked = False
-                    End If
-                End If
+                Dim dt As New DataTable()
 
-            End While
-            dbConnections.dReader.Close()
+                dt.Columns.Add("AG_ID", GetType(String))
+                dt.Columns.Add("AG_NAME", GetType(String))
+                dt.Columns.Add("ST", GetType(Image))
 
+                For Each rows In agreements
+                    Dim agName As String = If(String.IsNullOrEmpty(CStr(rows.AG_NAME)),
+                        CStr(rows.AG_ID), CStr(rows.AG_NAME))
+                    dt.Rows.Add(CStr(rows.AG_ID), agName, Nothing)
+                Next
 
+                dgAgreement.SuspendLayout()
+                dgAgreement.AutoGenerateColumns = True
+                dgAgreement.DataSource = dt
+                Dim imageCol = DirectCast(dgAgreement.Columns("ST"), DataGridViewImageColumn)
+                imageCol.ImageLayout = DataGridViewImageCellLayout.Zoom
+                dgAgreement.RowTemplate.Height = 50
 
-            dgAgreement.Rows.Clear()
-            Dim AgreementName As String = ""
-            strSQL = $"SELECT     AG_ID,AG_NAME FROM         TBL_CUS_AGREEMENT WHERE     (COM_ID = '{globalVariables.selectedCompanyID}') AND (CUS_CODE = '{txtCustomerID.Text}') and (MACHINE_TYPE = 'COLOR')"
-
-            dgAgreement.AutoGenerateColumns = True
-
-            Dim dt As New DataTable()
-            dt.Columns.Add("AG_ID", GetType(String))
-            dt.Columns.Add("AG_NAME", GetType(String))
-            dt.Columns.Add("ST", GetType(Image)) ' Optional column for images
-
-            Dim hasRecords As Boolean = False
-
-            Using cmd As New SqlCommand(strSQL, dbConnections.sqlConnection)
-                cmd.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-                cmd.Parameters.AddWithValue("@CUS_CODE", Trim(txtCustomerID.Text))
-
-                Using reader As SqlDataReader = cmd.ExecuteReader()
-                    While reader.Read()
-                        Dim agID = reader("AG_ID").ToString()
-                        Dim agName = If(IsDBNull(reader("AG_NAME")), agID, reader("AG_NAME").ToString())
-                        dt.Rows.Add(agID, agName, Nothing) ' Add rows to DataTable
-                    End While
-                End Using
+                dgAgreement.Columns(0).HeaderText = "Agreement ID"
+                dgAgreement.Columns(1).HeaderText = "Agreement Name"
+                dgAgreement.ResumeLayout()
             End Using
-
-            ' Bind the DataTable to the DataGridView
-            dgAgreement.DataSource = dt
-
-
-            ' Set image layout and row height
-            Dim imageCol As DataGridViewImageColumn = DirectCast(dgAgreement.Columns("ST"), DataGridViewImageColumn)
-            imageCol.ImageLayout = DataGridViewImageCellLayout.Zoom
-            dgAgreement.RowTemplate.Height = 50
-
-            dgAgreement.Columns(0).HeaderText = "Agreement ID"
-            dgAgreement.Columns(1).HeaderText = "Agreement Name"
-
-            'dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            'dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            'dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_CODE", Trim(txtCustomerID.Text))
-            'dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-            'Dim hasRecords As Boolean = False
-            'While dbConnections.dReader.Read
-            '    hasRecords = True
-
-
-            '    If IsDBNull(dbConnections.dReader.Item("AG_NAME")) Then
-            '        AgreementName = dbConnections.dReader.Item("AG_ID")
-            '    Else
-            '        AgreementName = dbConnections.dReader.Item("AG_NAME")
-            '    End If
-            '    populatreDatagrAgreements(dbConnections.dReader.Item("AG_ID"), AgreementName, Nothing)
-            'End While
-            'dbConnections.dReader.Close()
-            dgAgreement.ResumeLayout()
             IsInvoiced()
-
             globalFunctions.globalButtonActivation(True, True, False, False, False, False)
             Me.saveBtnStatus()
-
         Catch ex As Exception
-            MessageBox.Show("Error code(" & Me.Tag & "X4) " + GenaralErrorMessage + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            inputErrorLog(Me.Text, "" & Me.Tag & "X4", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-        Finally
-            dbConnections.dReader.Close()
-            connectionClose()
+            MessageBox.Show(ex.Message)
         End Try
+    End Function
 
+    Private Sub txtCustomerID_Validating(sender As Object, e As System.ComponentModel.CancelEventArgs) Handles txtCustomerID.Validating
+        LoadCustomerInformation()
     End Sub
 
-
-
-
-
-
 #End Region
-
-
 
     Private Sub dgAgreement_CellClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgAgreement.CellClick
         Try

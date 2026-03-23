@@ -5,6 +5,8 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports System.Configuration
+Imports Dapper
 
 Public Class frmInternalPrintView
 
@@ -23,6 +25,7 @@ Public Class frmInternalPrintView
     Private _lastFormSize As Integer
     Private SavedIR_NO As String
     Private IsNegative_Internal As String = ""
+    Private connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     '//Active form perform btn click case
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
@@ -168,7 +171,7 @@ Public Class frmInternalPrintView
             Dim InstalledPrinters As String
 
             ' Find all printers installed
-            For Each InstalledPrinters In _
+            For Each InstalledPrinters In
                 System.Drawing.Printing.PrinterSettings.InstalledPrinters
                 Me.cmbPrinterList.Items.Add(InstalledPrinters)
             Next InstalledPrinters
@@ -279,27 +282,71 @@ Public Class frmInternalPrintView
 
         End If
     End Sub
+
+    Private Function IsAod(ByVal invNo As String) As Boolean
+        Using connection As New SqlConnection(connectionString)
+            Dim sql As String = "
+            SELECT CASE 
+                WHEN EXISTS (
+                    SELECT 1 
+                    FROM TBL_INTERNAL_ITEMS 
+                    WHERE IR_NO = @invNo 
+                      AND PN = 'AOD'
+                ) 
+                THEN CAST(1 AS BIT) 
+                ELSE CAST(0 AS BIT) 
+            END"
+
+            Return connection.ExecuteScalar(Of Boolean)(sql, New With {.invNo = invNo})
+        End Using
+    End Function
+
     Private Function IsPrint_Enable() As Boolean
-        IsPrint_Enable = False
-
         Try
-            strSQL = "SELECT CASE WHEN EXISTS (SELECT     IR_NO FROM         TBL_INTERNAL_MAIN WHERE     (IR_STATE in ( 'PENDING FOR BELEETA UPLOAD', 'PENDING DISPATCH','INTERNAL CANCELLED' )) AND (IR_NO =@IR_NO) AND (COM_ID =@COM_ID)) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
-            'strSQL = "SELECT CASE WHEN EXISTS (SELECT     IR_NO FROM         TBL_INTERNAL_MAIN WHERE     (IR_STATE in ( 'INTERNAL PRINT PENDING', 'PENDING DISPATCH','INTERNAL CANCELLED' )) AND (IR_NO =@IR_NO) AND (COM_ID =@COM_ID)) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", Trim(txtIRNo.Text))
-            If dbConnections.sqlCommand.ExecuteScalar Then
-                IsPrint_Enable = True
+            Using connection As New SqlConnection(connectionString)
 
-            Else
-                IsPrint_Enable = False
-                MessageBox.Show("This Internal is in pending approval stage.", "Pending Approval.", MessageBoxButtons.OK)
-            End If
+                Dim sql As String = "
+                SELECT CAST(
+                    CASE 
+                        WHEN EXISTS (
+                            SELECT 1 
+                            FROM TBL_INTERNAL_ITEMS 
+                            WHERE IR_NO = @IR_NO 
+                              AND PN = 'AOD'
+                        )
+                        OR EXISTS (
+                            SELECT 1 
+                            FROM TBL_INTERNAL_MAIN 
+                            WHERE IR_STATE IN (
+                                'PENDING FOR BELEETA UPLOAD',
+                                'PENDING DISPATCH',
+                                'INTERNAL CANCELLED'
+                            )
+                            AND IR_NO = @IR_NO
+                            AND COM_ID = @COM_ID
+                        )
+                    THEN 1 ELSE 0 
+                    END AS BIT)"
+
+                Dim result As Boolean = connection.ExecuteScalar(Of Boolean)(
+                sql,
+                New With {
+                    .IR_NO = txtIRNo.Text.Trim(),
+                    .COM_ID = globalVariables.selectedCompanyID
+                })
+
+                If Not result Then
+                    MessageBox.Show("This Internal is in pending approval stage.", "Pending Approval.", MessageBoxButtons.OK)
+                End If
+
+                Return result
+
+            End Using
 
         Catch ex As Exception
-            MsgBox(ex.InnerException.Message)
+            MessageBox.Show(ex.Message)
+            Return False
         End Try
-        Return IsPrint_Enable
     End Function
 
     Dim CrTables As CrystalDecisions.CrystalReports.Engine.Tables
@@ -508,13 +555,11 @@ Public Class frmInternalPrintView
     End Sub
 
     Private Sub btnPrintViewInternal_Click(sender As Object, e As EventArgs) Handles btnPrintViewInternal.Click
-
         If IsPrint_Enable() = True Then
             If Internal_Print() Then
                 UpdateIRPrint()
             End If
         End If
-
     End Sub
 
     Private Function UpdateIRPrint() As Boolean

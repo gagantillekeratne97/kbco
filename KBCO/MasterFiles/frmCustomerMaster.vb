@@ -5,6 +5,8 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports System.Configuration
+Imports Dapper
 
 Public Class frmCustomerMaster
 
@@ -21,6 +23,8 @@ Public Class frmCustomerMaster
     Const WMCLOSE As String = "WmClose"
     Private _lastFormSize As Integer
 
+    Dim connectionString As String =
+        ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     '//Active form perform btn click case
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
@@ -226,20 +230,27 @@ Public Class frmCustomerMaster
         globalFunctions.globalButtonActivation(btnStatus(0), btnStatus(1), btnStatus(2), btnStatus(3), btnStatus(4), btnStatus(5))
         errorEvent = " read user permission"
         Try
-            connectionStaet()
-            strSQL = "SELECT USERDET_MENURIGHT FROM TBLU_USERDET WHERE USERDET_USERCODE='" & globalVariables.userSession & "' AND USERDET_MENUTAG='" & Me.Tag & "' AND COM_ID ='" & globalVariables.selectedCompanyID & "'"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, sqlConnection)
-            Dim rights As String = Trim(dbConnections.sqlCommand.ExecuteScalar)
-            If InStr(1, rights, "C") Then canCreate = True
-            If InStr(1, rights, "D") Then canDelete = True
-            If InStr(1, rights, "M") Then canModify = True
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                strSQL = "
+                SELECT USERDET_MENURIGHT 
+                FROM TBLU_USERDET 
+                WHERE 
+                USERDET_USERCODE = @usersession
+                AND USERDET_MENUTAG = @menutag
+                AND COM_ID = @companyid"
+                Dim rights As String = Trim(connection.ExecuteScalar(strSQL, New With {
+                    .usersession = userSession,
+                    .menutag = Me.Tag,
+                    .companyid = globalVariables.selectedCompanyID
+                }))
+                If InStr(1, rights, "C") Then canCreate = True
+                If InStr(1, rights, "D") Then canDelete = True
+                If InStr(1, rights, "M") Then canModify = True
+            End Using
         Catch ex As Exception
-            inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-            MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3) " + PermissionReadingErrorMessgae, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-        Finally
-            connectionClose()
+            MessageBox.Show(ex.Message)
         End Try
-
     End Sub
 
 #End Region
@@ -462,7 +473,7 @@ Public Class frmCustomerMaster
                 Else
                     txtSvatNo.Text = dbConnections.dReader.Item("CUS_SVAT_NO")
                 End If
-               
+
                 If IsDBNull(dbConnections.dReader.Item("PO_NO")) Then
                     txtPONo.Text = ""
                 Else

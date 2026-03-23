@@ -5,6 +5,7 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports System.Configuration
 Public Class frmInternalDispatch
 
 
@@ -24,6 +25,8 @@ Public Class frmInternalDispatch
     Private IsNegative_Internal As String = ""
     Private ApproveState As String = ""
     '//Active form perform btn click case
+    '//Get Connection String 
+    Dim connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
             Case "New"
@@ -354,7 +357,6 @@ Public Class frmInternalDispatch
         loadInternal()
     End Sub
 
-
     Private Sub loadInternal()
         If Trim(txtIRNo.Text) = "" Then
             Exit Sub
@@ -418,7 +420,7 @@ Public Class frmInternalDispatch
                 globalFunctions.globalButtonActivation(True, True, False, False, False, False)
                 Me.saveBtnStatus()
             Else
-              
+
             End If
 
         Catch ex As Exception

@@ -5,6 +5,10 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports System.Configuration
+Imports System.Threading.Tasks
+Imports System.ComponentModel
+Imports Dapper
 
 Public Class frmReturnMachine
 
@@ -25,6 +29,8 @@ Public Class frmReturnMachine
 
     Dim IsNewAgreement As Boolean = False '// CAPTURE new agreement or not for the customer
 
+    '//Get Connection String 
+    Dim connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     '//Active form perform btn click case
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
@@ -54,156 +60,292 @@ Public Class frmReturnMachine
         If conf = vbYes Then FormClear()
     End Sub
 
-   
+    Public Function save() As Boolean
+        Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2)
+        If conf <> vbYes Then Return False
+        If Not isDataValid() Then Return False
+        Dim rtnId As String = Genarate_Return_NO()
+        If String.IsNullOrEmpty(rtnId) Then Return False
 
+        Dim specialCaseDesc As Object = If(cbSpecialCase.Checked,
+                                   CObj(txtSpecialCase.Text.Trim()),
+                                   DBNull.Value)
 
-    Private Function save() As Boolean
-        save = False
+        Dim bookValue As Double = 0
+        Double.TryParse(txtBookValue.Text.Trim(), bookValue)
 
-        Dim RTN_ID As String = ""
+        Dim startMR As Integer = 0
+        Integer.TryParse(txtStartMR.Text.Trim(), startMR)
 
-        Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
-        If conf = vbYes Then
-            If isDataValid() = False Then
-                Exit Function
-            End If
+        Dim currentMRColor As Object = If(String.IsNullOrWhiteSpace(txtStartMRC.Text),
+            DBNull.Value, CObj(CInt(txtStartMRC.Text.Trim())))
 
-            RTN_ID = Genarate_Return_NO()
-            Try
+        Dim machineType As String = If(String.IsNullOrWhiteSpace(txtStartMRC.Text), "BW", "COLOR")
 
+        Const insertReturnSql As String =
+        "INSERT INTO TBL_RETUN_TRANSACTION
+               (COM_ID, R_ID, R_DATE, SERIAL, AG_ID, MACHINE_PN, P_NO,
+                IS_SPECIAL_CASE, SPECIAL_CASE_DESC, M_LOC1, M_LOC2, M_LOC3,
+                M_DEPT, CONTACT_PERSON, CONTACT_NO, INSTALLATION_DATE,
+                START_MR, BOOK_VALUE, TECH_CODE, REP_CODE, CUS_ID, R_COMMENT)
+             VALUES
+               (@COM_ID, @R_ID, GETDATE(), @Serial, @AgId, @MachinePN, @PNo,
+                @IsSpecialCase, @SpecialCaseDesc, @MLoc1, @MLoc2, @MLoc3,
+                @MDept, @ContactPerson, @ContactNo, @InstallationDate,
+                @StartMR, @BookValue, @TechCode, @RepCode, @CusId, @RComment)"
 
-                connectionStaet()
+        Const insertMachineReturnSql As String =
+            "INSERT INTO TBL_MACHINE_RETURN_NEW
+               (COM_ID, COM_NAME,R_ID, R_DATE, SERIAL, AG_ID, MACHINE_PN, P_NO,
+                IS_SPECIAL_CASE, SPECIAL_CASE_DESC, M_LOC1, M_LOC2, M_LOC3,
+                M_DEPT, CONTACT_PERSON, CONTACT_NO, INSTALLATION_DATE,
+                START_MR, BOOK_VALUE, TECH_CODE, REP_CODE, CUS_ID, CUS_NAME, R_COMMENT)
+             VALUES
+               (@COM_ID, @COM_NAME, @R_ID, GETDATE(), @Serial, @AgId, @MachinePN, @PNo,
+                @IsSpecialCase, @SpecialCaseDesc, @MLoc1, @MLoc2, @MLoc3,
+                @MDept, @ContactPerson, @ContactNo, @InstallationDate,
+                @StartMR, @BookValue, @TechCode, @RepCode, @CusId, @CusName, @RComment)"
 
-                dbConnections.sqlTransaction = dbConnections.sqlConnection.BeginTransaction
+        Const updateStockSql As String =
+        "UPDATE TBL_MACHINE_STOCK
+         SET MACHINE_PN=@MachinePN, BOOK_VALUE=@BookValue, SN_STATUS='AVAILABLE',
+             CURRENT_CUS_ID=@CusId, CURRENT_AG_ID=@CurrentAgId,
+             CURRENT_MR=@StartMR, MACHINE_TYPE=@MachineType,
+             IS_ACTIVE=1, CURRENT_MR_COLOR=@CurrentMRColor
+         WHERE COM_ID=@COM_ID AND SERIAL=@Serial"
 
+        Const insertAuditSql As String =
+        "INSERT INTO TBL_MACHINE_AUDIT
+               (COM_ID, SERIAL, MACHINE_PN, CUS_ID, AG_ID, AU_DATE, AU_STATUS)
+             VALUES
+               (@COM_ID, @Serial, @MachinePN, @CusId, @CurrentAgId, GETDATE(), 'IN-STOCK')"
 
+        Const deleteTransactionsSql As String =
+        "DELETE FROM TBL_MACHINE_TRANSACTIONS
+         WHERE COM_ID=@COM_ID AND SERIAL=@Serial"
 
+        Dim selectCompanyNameSql As String = "
+        SELECT COM_NAME 
+        FROM L_TBL_COMPANIES
+        WHERE COM_ID = @COM_ID"
 
-                errorEvent = "Save"
-                strSQL = "INSERT INTO TBL_RETUN_TRANSACTION (COM_ID, R_ID, R_DATE, SERIAL, AG_ID, MACHINE_PN, P_NO, IS_SPECIAL_CASE, SPECIAL_CASE_DESC, M_LOC1, M_LOC2, M_LOC3, M_DEPT, CONTACT_PERSON, CONTACT_NO, INSTALLATION_DATE, START_MR, BOOK_VALUE, TECH_CODE, REP_CODE, CUS_ID, R_COMMENT) VALUES     (@COM_ID, @R_ID, GETDATE() , @SERIAL, @AG_ID, @MACHINE_PN, @P_NO, @IS_SPECIAL_CASE, @SPECIAL_CASE_DESC, @M_LOC1, @M_LOC2, @M_LOC3, @M_DEPT, @CONTACT_PERSON, @CONTACT_NO, @INSTALLATION_DATE, @START_MR, @BOOK_VALUE, @TECH_CODE, @REP_CODE, @CUS_ID, @R_COMMENT)"
+        Dim selectCustomerNameSql As String = "
+        SELECT CUS_NAME 
+        FROM MTBL_CUSTOMER_MASTER 
+        WHERE CUS_ID = @CusId"
 
+        Dim companyName As String = ""
+        Dim customerName As String = ""
 
+        Dim connection = New SqlConnection(connectionString)
+        companyName = connection.QuerySingleOrDefault(Of String)(selectCompanyNameSql, New With {.COM_ID = selectedCompanyID}, commandTimeout:=120)
+        customerName = connection.QuerySingleOrDefault(Of String)(selectCustomerNameSql, New With {.CusId = txtCustomerID.Text.Trim()}, commandTimeout:=120)
 
+        ' --- Single shared parameter object used across all statements ---
+        Dim p As New With {
+            .COM_ID = globalVariables.selectedCompanyID,
+            .COM_NAME = companyName,
+            .R_ID = rtnId,
+            .AgId = txtAgreementID.Text.Trim(),
+            .Serial = txtSerialNo.Text.Trim(),
+            .MachinePN = txtMachinePN.Text.Trim(),
+            .PNo = txtPno.Text.Trim(),
+            .IsSpecialCase = cbSpecialCase.CheckState,
+            .SpecialCaseDesc = specialCaseDesc,
+            .MLoc1 = txtMLocation1.Text.Trim(),
+            .MLoc2 = txtMLocation2.Text.Trim(),
+            .MLoc3 = txtMLocation3.Text.Trim(),
+            .MDept = txtDept.Text.Trim(),
+            .ContactPerson = txtContact.Text.Trim(),
+            .ContactNo = txtTel.Text.Trim(),
+            .InstallationDate = dtpInstallationDate.Value,
+            .StartMR = startMR,
+            .BookValue = bookValue,
+            .TechCode = txtTechCode.Text.Trim(),
+            .RepCode = txtRepCode.Text.Trim(),
+            .CusId = txtCustomerID.Text.Trim(),
+            .CusName = customerName,
+            .RComment = txtComment.Text.Trim(),
+            .CurrentAgId = txtAgreementID.Text.Trim(),
+            .MachineType = machineType,
+            .CurrentMRColor = currentMRColor
+        }
 
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(SelectedAgreement))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_PN", Trim(txtMachinePN.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@P_NO", Trim(txtPno.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IS_SPECIAL_CASE", cbSpecialCase.CheckState)
-                If cbSpecialCase.Checked = False Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@SPECIAL_CASE_DESC", DBNull.Value)
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@SPECIAL_CASE_DESC", Trim(txtSpecialCase.Text))
-                End If
+        Try
+            Using conn As New SqlConnection(connectionString)
+                conn.Open()
+                Using tran = conn.BeginTransaction()
+                    Try
+                        conn.Execute(insertReturnSql, p, tran, commandTimeout:=120)
+                        conn.Execute(insertMachineReturnSql, p, tran, commandTimeout:=120)
+                        conn.Execute(updateStockSql, p, tran, commandTimeout:=120)
+                        conn.Execute(insertAuditSql, p, tran, commandTimeout:=120)
+                        conn.Execute(deleteTransactionsSql, p, tran, commandTimeout:=120)
 
-                dbConnections.sqlCommand.Parameters.AddWithValue("@M_LOC1", Trim(txtMLocation1.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@M_LOC2", Trim(txtMLocation2.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@M_LOC3", Trim(txtMLocation3.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@M_DEPT", Trim(txtDept.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CONTACT_PERSON", Trim(txtContact.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CONTACT_NO", Trim(txtTel.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@INSTALLATION_DATE", dtpInstallationDate.Value)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@START_MR", Trim(txtStartMR.Text))
+                        tran.Commit()
+                        MessageBox.Show("Machine Removed.", "Removed.",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        Return True
 
-                If Trim(txtStartMR.Text) = "" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@START_MR_COLOR", 0)
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@START_MR_COLOR", CDbl(Trim(txtStartMR.Text)))
-                End If
-
-
-                If Trim(txtBookValue.Text) = "" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@BOOK_VALUE", 0)
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@BOOK_VALUE", CDbl(Trim(txtBookValue.Text)))
-                End If
-
-                dbConnections.sqlCommand.Parameters.AddWithValue("@TECH_CODE", Trim(txtTechCode.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@REP_CODE", Trim(txtRepCode.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-
-                dbConnections.sqlCommand.Parameters.AddWithValue("@R_ID", RTN_ID)
-
-                dbConnections.sqlCommand.Parameters.AddWithValue("@R_COMMENT", Trim(txtComment.Text))
-
-                If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
-
-
-                '// UPDATING STOCK
-
-                errorEvent = "Edit"
-                strSQL = "UPDATE  TBL_MACHINE_STOCK SET  MACHINE_PN =@MACHINE_PN, BOOK_VALUE =@BOOK_VALUE, SN_STATUS =@SN_STATUS, CURRENT_CUS_ID =@CURRENT_CUS_ID, CURRENT_AG_ID =@CURRENT_AG_ID, CURRENT_MR =@CURRENT_MR, MACHINE_TYPE =@IS_ACTIVE, IS_ACTIVE =@IS_ACTIVE, CURRENT_MR_COLOR=@CURRENT_MR_COLOR WHERE     (COM_ID = @COM_ID) AND (SERIAL = @SERIAL)"
-
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_PN", Trim(txtMachinePN.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@BOOK_VALUE", CDbl(txtBookValue.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@SN_STATUS", "AVAILABLE")
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_CUS_ID", Trim(txtCustomerID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_AG_ID", Trim(txtAgreementID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_MR", CInt(txtStartMR.Text))
-                If Trim(txtStartMRC.Text) = "" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_MR_COLOR", DBNull.Value)
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_MR_COLOR", CInt(txtStartMRC.Text))
-                End If
-
-                If Trim(txtStartMRC.Text) = "" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_TYPE", "BW")
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_TYPE", "COLOR")
-                End If
-
-
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IS_ACTIVE", True)
-
-                If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
-
-
-
-                '// ADDING RECORD TO MACHINE AUDIT LOG
-                errorEvent = "Save"
-                strSQL = "INSERT INTO TBL_MACHINE_AUDIT  (COM_ID, SERIAL, MACHINE_PN, CUS_ID, AG_ID, AU_DATE, AU_STATUS) VALUES     ( @COM_ID, @SERIAL, @MACHINE_PN, @CUS_ID, @AG_ID, GETDATE(), @AU_STATUS)"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_PN", Trim(txtMachinePN.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtAgreementID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@AU_STATUS", "IN-STOCK")
-                If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
-
-
-
-                strSQL = "DELETE FROM TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = @COM_ID) AND (SERIAL =@SERIAL)"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
-                If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
-
-
-                dbConnections.sqlTransaction.Commit()
-
-                If save Then
-                    MessageBox.Show("Machine Removed.", "Removed.", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                End If
-            Catch ex As Exception
-                dbConnections.sqlTransaction.Rollback()
-                inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-                MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
-
-            Finally
-                dbConnections.dReader.Close()
-                connectionClose()
-
-            End Try
-        End If
-
-        Return save
+                    Catch ex As Exception
+                        MsgBox(ex.Message)
+                        Return False
+                    End Try
+                End Using
+            End Using
+        Catch ex As Exception
+            MsgBox(ex.Message)
+            Return False
+        End Try
     End Function
+
+    'Private Function save() As Boolean
+    '    save = False
+
+    '    Dim RTN_ID As String = ""
+
+    '    Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
+    '    If conf = vbYes Then
+    '        If isDataValid() = False Then
+    '            Exit Function
+    '        End If
+
+    '        RTN_ID = Genarate_Return_NO()
+    '        Try
+
+
+    '            connectionStaet()
+
+    '            dbConnections.sqlTransaction = dbConnections.sqlConnection.BeginTransaction
+
+
+
+
+    '            errorEvent = "Save"
+    '            strSQL = "INSERT INTO TBL_RETUN_TRANSACTION (COM_ID, R_ID, R_DATE, SERIAL, AG_ID, MACHINE_PN, P_NO, IS_SPECIAL_CASE, SPECIAL_CASE_DESC, M_LOC1, M_LOC2, M_LOC3, M_DEPT, CONTACT_PERSON, CONTACT_NO, INSTALLATION_DATE, START_MR, BOOK_VALUE, TECH_CODE, REP_CODE, CUS_ID, R_COMMENT) VALUES     (@COM_ID, @R_ID, GETDATE(), @SERIAL, @AG_ID, @MACHINE_PN, @P_NO, @IS_SPECIAL_CASE, @SPECIAL_CASE_DESC, @M_LOC1, @M_LOC2, @M_LOC3, @M_DEPT, @CONTACT_PERSON, @CONTACT_NO, @INSTALLATION_DATE, @START_MR, @BOOK_VALUE, @TECH_CODE, @REP_CODE, @CUS_ID, @R_COMMENT)"
+
+
+
+
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(SelectedAgreement))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_PN", Trim(txtMachinePN.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@P_NO", Trim(txtPno.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@IS_SPECIAL_CASE", cbSpecialCase.CheckState)
+    '            If cbSpecialCase.Checked = False Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@SPECIAL_CASE_DESC", DBNull.Value)
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@SPECIAL_CASE_DESC", Trim(txtSpecialCase.Text))
+    '            End If
+
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@M_LOC1", Trim(txtMLocation1.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@M_LOC2", Trim(txtMLocation2.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@M_LOC3", Trim(txtMLocation3.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@M_DEPT", Trim(txtDept.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CONTACT_PERSON", Trim(txtContact.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CONTACT_NO", Trim(txtTel.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@INSTALLATION_DATE", dtpInstallationDate.Value)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@START_MR", Trim(txtStartMR.Text))
+
+    '            If Trim(txtStartMR.Text) = "" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@START_MR_COLOR", 0)
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@START_MR_COLOR", CDbl(Trim(txtStartMR.Text)))
+    '            End If
+
+
+    '            If Trim(txtBookValue.Text) = "" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@BOOK_VALUE", 0)
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@BOOK_VALUE", CDbl(Trim(txtBookValue.Text)))
+    '            End If
+
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@TECH_CODE", Trim(txtTechCode.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@REP_CODE", Trim(txtRepCode.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@R_ID", RTN_ID)
+
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@R_COMMENT", Trim(txtComment.Text))
+
+    '            If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
+
+
+    '            '// UPDATING STOCK
+
+    '            errorEvent = "Edit"
+    '            strSQL = "UPDATE  TBL_MACHINE_STOCK SET  MACHINE_PN =@MACHINE_PN, BOOK_VALUE =@BOOK_VALUE, SN_STATUS =@SN_STATUS, CURRENT_CUS_ID =@CURRENT_CUS_ID, CURRENT_AG_ID =@CURRENT_AG_ID, CURRENT_MR =@CURRENT_MR, MACHINE_TYPE =@IS_ACTIVE, IS_ACTIVE =@IS_ACTIVE, CURRENT_MR_COLOR =@CURRENT_MR_COLOR WHERE     (COM_ID = @COM_ID) And (SERIAL = @SERIAL)"
+
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_PN", Trim(txtMachinePN.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@BOOK_VALUE", CDbl(txtBookValue.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@SN_STATUS", "AVAILABLE")
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_CUS_ID", Trim(txtCustomerID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_AG_ID", Trim(txtAgreementID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_MR", CInt(txtStartMR.Text))
+    '            If Trim(txtStartMRC.Text) = "" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_MR_COLOR", DBNull.Value)
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_MR_COLOR", CInt(txtStartMRC.Text))
+    '            End If
+
+    '            If Trim(txtStartMRC.Text) = "" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_TYPE", "BW")
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_TYPE", "COLOR")
+    '            End If
+
+
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@IS_ACTIVE", True)
+
+    '            If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
+
+
+
+    '            '// ADDING RECORD TO MACHINE AUDIT LOG
+    '            errorEvent = "Save"
+    '            strSQL = "INSERT INTO TBL_MACHINE_AUDIT  (COM_ID, SERIAL, MACHINE_PN, CUS_ID, AG_ID, AU_DATE, AU_STATUS) VALUES     ( @COM_ID, @SERIAL, @MACHINE_PN, @CUS_ID, @AG_ID, GETDATE(), @AU_STATUS)"
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_PN", Trim(txtMachinePN.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(txtAgreementID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@AU_STATUS", "In-STOCK")
+    '            If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
+
+
+
+    '            strSQL = "DELETE FROM TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = @COM_ID) And (SERIAL =@SERIAL)"
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", Trim(txtSerialNo.Text))
+    '            If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
+
+
+    '            dbConnections.sqlTransaction.Commit()
+
+    '            If save Then
+    '                MessageBox.Show("Machine Removed.", "Removed.", MessageBoxButtons.OK, MessageBoxIcon.Information)
+    '            End If
+    '        Catch ex As Exception
+    '            dbConnections.sqlTransaction.Rollback()
+    '            inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
+    '            MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+
+    '        Finally
+    '            dbConnections.dReader.Close()
+    '            connectionClose()
+
+    '        End Try
+    '    End If
+
+    '    Return save
+    'End Function
 
 
     Private Function delete() As Boolean
@@ -281,7 +423,7 @@ Public Class frmReturnMachine
         errorEvent = " read user permission"
         Try
             connectionStaet()
-            strSQL = "SELECT USERDET_MENURIGHT FROM TBLU_USERDET WHERE USERDET_USERCODE='" & globalVariables.userSession & "' AND USERDET_MENUTAG='" & Me.Tag & "'AND USERDET_MENUTAG='" & Me.Tag & "' AND COM_ID ='" & globalVariables.selectedCompanyID & "'"
+            strSQL = "Select USERDET_MENURIGHT FROM TBLU_USERDET WHERE USERDET_USERCODE='" & globalVariables.userSession & "' AND USERDET_MENUTAG='" & Me.Tag & "'AND USERDET_MENUTAG='" & Me.Tag & "' AND COM_ID ='" & globalVariables.selectedCompanyID & "'"
             dbConnections.sqlCommand = New SqlCommand(strSQL, sqlConnection)
             Dim rights As String = Trim(dbConnections.sqlCommand.ExecuteScalar)
             If InStr(1, rights, "C") Then canCreate = True

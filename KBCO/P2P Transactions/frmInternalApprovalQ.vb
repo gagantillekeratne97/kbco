@@ -5,6 +5,8 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports System.Configuration
+Imports Dapper
 
 Public Class frmInternalApprovalQ
 
@@ -23,6 +25,8 @@ Public Class frmInternalApprovalQ
     Private _lastFormSize As Integer
     Private SavedIR_NO As String
     '//Active form perform btn click case
+    Dim connectionString As String =
+        ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
             Case "New"
@@ -136,26 +140,24 @@ Public Class frmInternalApprovalQ
         errorEvent = "Add to grid()"
         dgApprovedInternalQ.Rows.Clear()
         Try
-            connectionStaet()
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                strSQL = "
+                SELECT TBL_INTERNAL_MAIN.IR_NO, TBL_INTERNAL_MAIN.IR_DATE, TBL_INTERNAL_MAIN.SERIAL_NO, 
+                TBL_INTERNAL_MAIN.PN_NO, TBL_INTERNAL_MAIN.CUS_LOC, MTBL_CUSTOMER_MASTER.CUS_NAME, TBL_INTERNAL_MAIN.IR_STATE
+                FROM TBL_INTERNAL_MAIN INNER JOIN MTBL_CUSTOMER_MASTER ON TBL_INTERNAL_MAIN.COM_ID = MTBL_CUSTOMER_MASTER.COM_ID
+                AND TBL_INTERNAL_MAIN.CUS_CODE = MTBL_CUSTOMER_MASTER.CUS_ID
+                WHERE (TBL_INTERNAL_MAIN.COM_ID = @CompanyID) AND ((TBL_INTERNAL_MAIN.IR_STATE = 'PENDING APPROVAL') OR (TBL_INTERNAL_MAIN.IR_STATE = 'PENDING GM APPROVAL'))
+                "
+                Dim something As Object = connection.Query(strSQL, New With {.CompanyID = Trim(globalVariables.selectedCompanyID)}).ToList()
 
-            strSQL = "SELECT     TBL_INTERNAL_MAIN.IR_NO, TBL_INTERNAL_MAIN.IR_DATE, TBL_INTERNAL_MAIN.SERIAL_NO, TBL_INTERNAL_MAIN.PN_NO, TBL_INTERNAL_MAIN.CUS_LOC,   MTBL_CUSTOMER_MASTER.CUS_NAME,TBL_INTERNAL_MAIN.IR_STATE FROM  TBL_INTERNAL_MAIN INNER JOIN  MTBL_CUSTOMER_MASTER ON TBL_INTERNAL_MAIN.COM_ID = MTBL_CUSTOMER_MASTER.COM_ID AND TBL_INTERNAL_MAIN.CUS_CODE = MTBL_CUSTOMER_MASTER.CUS_ID WHERE     (TBL_INTERNAL_MAIN.COM_ID ='" & Trim(globalVariables.selectedCompanyID) & "') AND ((TBL_INTERNAL_MAIN.IR_STATE = 'PENDING APPROVAL') OR (TBL_INTERNAL_MAIN.IR_STATE = 'PENDING GM APPROVAL'))"
-            dbConnections.sqlCommand.CommandText = strSQL
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-            While dbConnections.dReader.Read
-                populatreDatagrid(dbConnections.dReader.Item("IR_NO"), CDate(dbConnections.dReader.Item("IR_DATE")).ToShortDateString, dbConnections.dReader.Item("PN_NO"), dbConnections.dReader.Item("SERIAL_NO"), dbConnections.dReader.Item("CUS_NAME"), dbConnections.dReader.Item("CUS_LOC"), dbConnections.dReader.Item("IR_STATE"))
-
-                rowCount = rowCount + 1
-            End While
-
+                For Each item In something
+                    populatreDatagrid(item.IR_NO, CDate(item.IR_DATE).ToShortDateString, item.PN_NO, item.SERIAL_NO, item.CUS_NAME, item.CUS_LOC, item.IR_STATE)
+                    rowCount += 1
+                Next
+            End Using
         Catch ex As Exception
-            dbConnections.dReader.Close()
-            inputErrorLog(Me.Text, "" & Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-            MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-
-        Finally
-            dbConnections.dReader.Close()
-            connectionClose()
+            MessageBox.Show(ex.Message)
         End Try
     End Sub
 

@@ -54,8 +54,8 @@ Namespace My
                             globalVariables.GlobelConnectionStates = cn.Replace("GBConnection=", "").Trim
                             Reader.Close()
                             Reader.Dispose()
-                            dbConnections.sqlConnection.ConnectionString = "Data Source=" & selectedServerName & ";Initial Catalog=" & selectedDatabaseName & ";User ID=db_ab8b61_kbco_admin;Password=Ssg789.541351;MultipleActiveResultSets=True;"
-                            'dbConnections.sqlConnection.ConnectionString = "Data Source=" & selectedServerName & ";Initial Catalog=" & selectedDatabaseName & ";User ID=gestetner;Password=gocl248;MultipleActiveResultSets=True;"
+                            'dbConnections.sqlConnection.ConnectionString = "Data Source=" & selectedServerName & ";Initial Catalog=" & selectedDatabaseName & ";User ID=db_ab8b61_kbco_admin;Password=Ssg789.541351;MultipleActiveResultSets=True;"
+                            dbConnections.sqlConnection.ConnectionString = "Data Source=" & selectedServerName & ";Initial Catalog=" & selectedDatabaseName & ";User ID=gestetner;Password=gocl248;MultipleActiveResultSets=True;"
                             setConnectionString = True
                         Else '//If the lines to be read are in incorrect format or order
                             Reader.Close()

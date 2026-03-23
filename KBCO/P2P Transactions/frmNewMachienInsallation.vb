@@ -1,10 +1,12 @@
-﻿Imports System.Data.SqlClient
+﻿Imports System.Configuration
+Imports System.Data.SqlClient
+Imports System.IO
+Imports System.Net
 Imports CrystalDecisions.CrystalReports.Engine
 Imports CrystalDecisions.ReportSource
 Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
-Imports System.Net
-Imports System.IO
+Imports Dapper
 
 Public Class frmNewMachienInsallation
 
@@ -21,9 +23,10 @@ Public Class frmNewMachienInsallation
     Const WMCLOSE As String = "WmClose"
     Private _lastFormSize As Integer
     Dim SelectedAgreement As String
-
+    Dim connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     Dim IsNewAgreement As Boolean = False '// CAPTURE new agreement or not for the customer
-
+    'Return ID 
+    Dim returnID As String = ""
     '//Active form perform btn click case
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
@@ -78,6 +81,18 @@ Public Class frmNewMachienInsallation
                 connectionStaet()
 
                 dbConnections.sqlTransaction = dbConnections.sqlConnection.BeginTransaction
+
+                'Removing Return machine from Machine Returns 
+                Using connection As New SqlConnection(connectionString)
+                    connection.Open()
+
+                    If returnID IsNot Nothing Then
+                        Dim sql As String = "
+                        DELETE FROM TBL_MACHINE_RETURN_NEW 
+                        WHERE ID = @returnID AND COM_ID = @companyID"
+                        Dim result = connection.Execute(sql, New With {.returnID = returnID, .companyID = selectedCompanyID})
+                    End If
+                End Using
 
                 If IsNewAgreement = False Then
                     errorEvent = "Edit"
@@ -134,7 +149,8 @@ Public Class frmNewMachienInsallation
                 dbConnections.sqlCommand.Parameters.AddWithValue("@SLAB_METHOD", Trim(cmbSlabMethod.Text))
                 dbConnections.sqlCommand.Parameters.AddWithValue("@BILLING_PERIOD", Trim(cmbBilPeriod.Text))
                 dbConnections.sqlCommand.Parameters.AddWithValue("@REP_CODE", Trim(txtRepCode.Text))
-             
+
+
 
                 If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
 
@@ -775,6 +791,27 @@ Public Class frmNewMachienInsallation
                     SelCusCode = dbConnections.dReader.Item("CUS_ID")
                 End While
                 dbConnections.dReader.Close()
+
+                Dim sql As String = "
+                SELECT ID 
+                FROM TBL_MACHINE_RETURN_NEW
+                WHERE SERIAL = @serialNo"
+
+                Dim isMachineReturn As Boolean = False
+
+                Using conn As New SqlConnection(connectionString)
+
+                    Dim result = conn.QueryFirstOrDefault(Of String)(sql, New With {.serialNo = txtSearch.Text})
+                    If result IsNot Nothing Then
+                        returnID = result
+                        isMachineReturn = True
+                        lblReturnedMachine.Visible = True
+                        lblReturnedMachine.Text = "This machine is a returned machine"
+                    Else
+                        lblReturnedMachine.Visible = False
+                    End If
+
+                End Using
             Else
                 strSQL = "SELECT     AG_ID, SERIAL, P_NO,CUS_ID FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND  (P_NO = '" & Trim(txtSearch.Text) & "')"
                 dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
@@ -1572,7 +1609,7 @@ Public Class frmNewMachienInsallation
             End Try
 
         End If
-       
+
     End Sub
 
     Private Sub txtTechCode_Validating(sender As Object, e As System.ComponentModel.CancelEventArgs) Handles txtTechCode.Validating
@@ -1739,7 +1776,7 @@ Public Class frmNewMachienInsallation
         End Try
     End Sub
 
-  
+
 
     Private Sub txtSerialNo_Validating(sender As Object, e As System.ComponentModel.CancelEventArgs) Handles txtSerialNo.Validating
         If Trim(txtSerialNo.Text) = "" Then
@@ -1753,7 +1790,8 @@ Public Class frmNewMachienInsallation
         End If
     End Sub
 
-   
+
+
 
     Private Sub txtPno_Validating(sender As Object, e As System.ComponentModel.CancelEventArgs) Handles txtPno.Validating
         If Trim(txtPno.Text) = "" Then

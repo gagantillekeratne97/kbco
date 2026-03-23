@@ -5,6 +5,9 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports Microsoft.Office.Interop.Excel
+Imports System.Configuration
+Imports Dapper
 
 Public Class frmInternalApproval
 
@@ -25,6 +28,8 @@ Public Class frmInternalApproval
     Private IsNegative_Internal As String = ""
     Private ApproveState As String = ""
     '//Active form perform btn click case
+    Dim connectionString As String =
+        ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
             Case "New"
@@ -58,82 +63,147 @@ Public Class frmInternalApproval
             Exit Function
         End If
 
-
         Dim Mesg As String = ""
+        Dim replyMsg As String = ""
 
-        If ApproveState = "CANCEL" Then
-            Mesg = "Do you wish to cancel this Internal?"
-        ElseIf ApproveState = "APPROVE" Then
-            Mesg = "Do you wish to approve this Internal?"
-        Else
-            Mesg = "Do you wish to reject this Internal?"
-        End If
+        Select Case ApproveState
+            Case "CANCEL"
+                Mesg = "Do you wish to cancel this Internal?"
+                replyMsg = "Internal Cancelled Successfully."
+            Case "APPROVE"
+                Mesg = "Do you wish to approve this Internal?"
+                replyMsg = "Internal Approved Successfully."
+            Case Else
+                Mesg = "Do you wish to reject this Internal?"
+                replyMsg = "Internal Rejected Successfully."
+        End Select
 
         Dim conf = MessageBox.Show(Mesg, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
         If conf = vbYes Then
             If isDataValid() = False Then
                 Exit Function
             End If
-            connectionStaet()
-
             Try
                 errorEvent = "Edit"
+                strSQL = "
+                UPDATE TBL_INTERNAL_MAIN SET IR_APP_BY = @irappby, IR_APP_NAME = @irappname, 
+                IR_APP_DATE = @irappdate, IR_APP_STATE = @irappstate, IR_COMMENT =@ircomment, IR_STATE =@irstate
+                WHERE COM_ID = @companyid AND IR_NO = @irno"
 
-                strSQL = "UPDATE    TBL_INTERNAL_MAIN SET    IR_APP_BY =@IR_APP_BY, IR_APP_NAME =@IR_APP_NAME, IR_APP_DATE =GETDATE(), IR_APP_STATE =@IR_APP_STATE, IR_COMMENT =@IR_COMMENT, IR_STATE =@IR_STATE WHERE     (COM_ID = @COM_ID) AND (IR_NO =@IR_NO)"
+                Using connection As New SqlConnection(connectionString)
+                    connection.Open()
+                    Dim rowsAffected As Integer = connection.Execute(strSQL, New With {
+                        .irappby = userSession,
+                        .irappname = userName,
+                        .irappdate = DateTime.Now,
+                        .irappstate = If(ApproveState = "APPROVE", "APPROVED", If(ApproveState = "CANCEL", "CANCELLED", "REJECT")),
+                        .ircomment = If(Trim(txtComment.Text) = "", DBNull.Value, Trim(txtComment.Text)),
+                        .irstate = If(ApproveState = "CANCEL", "INTERNAL CANCELLED", "INTERNAL PRINT PENDING"),
+                        .companyid = globalVariables.selectedCompanyID,
+                        .irno = Trim(txtIRNo.Text)
+                    })
 
-
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
-
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", Trim(txtIRNo.Text))
-
-
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_BY", userSession)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_NAME", userName)
-
-
-
-                If ApproveState = "APPROVE" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_STATE", "APPROVED")
-
-                ElseIf ApproveState = "CANCEL" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_STATE", "CANCELLED")
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_STATE", "REJECT")
-                End If
-                If Trim(txtComment.Text) = "" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_COMMENT", DBNull.Value)
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_COMMENT", Trim(txtComment.Text))
-                End If
-                If ApproveState = "CANCEL" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "INTERNAL CANCELLED")
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "INTERNAL PRINT PENDING")
-                End If
-
-
-
-                If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
-
-
+                    If rowsAffected > 0 Then
+                        MessageBox.Show(replyMsg, "Error", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        Me.Close()
+                        Return True
+                    Else
+                        MessageBox.Show("No Records Were updated.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                        Me.Close()
+                        Return False
+                    End If
+                End Using
             Catch ex As Exception
-                dbConnections.dReader.Close()
-                MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                inputErrorLog(Me.Text, "" & Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-            Finally
-                dbConnections.dReader.Close()
-                connectionClose()
-
+                MessageBox.Show(ex.Message)
+                Me.Close()
+                Return False
             End Try
         End If
-        If save Then
-
-            Me.Dispose()
-        End If
-
-        Return save
     End Function
+
+    'Private Function save() As Boolean
+    '    save = False
+
+    '    If ApproveState = "" Then
+    '        Exit Function
+    '    End If
+
+
+    '    Dim Mesg As String = ""
+
+    '    If ApproveState = "CANCEL" Then
+    '        Mesg = "Do you wish to cancel this Internal?"
+    '    ElseIf ApproveState = "APPROVE" Then
+    '        Mesg = "Do you wish to approve this Internal?"
+    '    Else
+    '        Mesg = "Do you wish to reject this Internal?"
+    '    End If
+
+    '    Dim conf = MessageBox.Show(Mesg, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
+    '    If conf = vbYes Then
+    '        If isDataValid() = False Then
+    '            Exit Function
+    '        End If
+    '        connectionStaet()
+
+    '        Try
+    '            errorEvent = "Edit"
+
+    '            strSQL = "UPDATE    TBL_INTERNAL_MAIN SET    IR_APP_BY =@IR_APP_BY, IR_APP_NAME =@IR_APP_NAME, IR_APP_DATE =GETDATE(), IR_APP_STATE =@IR_APP_STATE, IR_COMMENT =@IR_COMMENT, IR_STATE =@IR_STATE WHERE     (COM_ID = @COM_ID) AND (IR_NO =@IR_NO)"
+
+
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
+
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", Trim(txtIRNo.Text))
+
+
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_BY", userSession)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_NAME", userName)
+
+
+
+    '            If ApproveState = "APPROVE" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_STATE", "APPROVED")
+
+    '            ElseIf ApproveState = "CANCEL" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_STATE", "CANCELLED")
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_APP_STATE", "REJECT")
+    '            End If
+    '            If Trim(txtComment.Text) = "" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_COMMENT", DBNull.Value)
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_COMMENT", Trim(txtComment.Text))
+    '            End If
+    '            If ApproveState = "CANCEL" Then
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "INTERNAL CANCELLED")
+    '            Else
+    '                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "INTERNAL PRINT PENDING")
+    '            End If
+
+
+
+    '            If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
+
+
+    '        Catch ex As Exception
+    '            dbConnections.dReader.Close()
+    '            MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+    '            inputErrorLog(Me.Text, "" & Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
+    '        Finally
+    '            dbConnections.dReader.Close()
+    '            connectionClose()
+
+    '        End Try
+    '    End If
+    '    If save Then
+
+    '        Me.Dispose()
+    '    End If
+
+    '    Return save
+    'End Function
 
     Private Function delete() As Boolean
         errorEvent = "Delete"
@@ -447,15 +517,8 @@ Public Class frmInternalApproval
 
             While dbConnections.dReader.Read
                 populatreDatagrid(dbConnections.dReader.Item("PN_DESC"), dbConnections.dReader.Item("PN"), dbConnections.dReader.Item("PN_QTY"), dbConnections.dReader.Item("PN_TYPE"), dbConnections.dReader.Item("PN_VALUE"), dbConnections.dReader.Item("PREVIOUS_READING"), dbConnections.dReader.Item("COPIES"), (dbConnections.dReader.Item("STD_YIELD") * dbConnections.dReader.Item("PN_QTY")), dbConnections.dReader.Item("STD_YIELD"))
-
             End While
             dbConnections.dReader.Close()
-
-
-
-
-
-
         Catch ex As Exception
             MsgBox(ex.InnerException.Message)
         End Try

@@ -6,6 +6,9 @@ Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
 Imports System.IO
+Imports System.Configuration
+Imports System.Web.UI.WebControls
+Imports Dapper
 
 Public Class frmBank
     Private errorEvent As String
@@ -20,6 +23,9 @@ Public Class frmBank
     Dim generalValObj As New generalValidation
     Const WMCLOSE As String = "WmClose"
     Private _lastFormSize As Integer
+
+    Dim connectionString As String =
+        ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
 
     '//Active form perform btn click case
     Public Sub Preform_btn_click(ByVal strString As String)
@@ -50,25 +56,50 @@ Public Class frmBank
 
     Private Function save() As Boolean
         save = False
-
         Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
         If conf = vbYes Then
             If isDataValid() = False Then
                 Exit Function
             End If
+            dbConnections.sqlConnection.Close()
             Try
-                connectionStaet()
                 If isEditClicked Then
                     errorEvent = "Edit"
-                    strSQL = "UPDATE " & selectedDatabaseName & ".dbo.TBL_BANK SET Bank_Name =@Bank_Name,MD_DATE=getdate(),MD_BY='" & userSession & "' WHERE Bank_ID=@Bank_ID and COM_ID='" & globalVariables.selectedCompanyID & "'"
+                    strSQL = "
+                    UPDATE TBL_BANK SET Bank_Name = @bankname, MD_DATE = @todaydate, MD_BY = @modifiedby 
+                    WHERE BANK_ID = @bankid AND COM_ID = @companyid"
+
+                    Using connection As New SqlConnection(connectionString)
+                        connection.Open()
+                        connection.Execute(strSQL, New With {
+                            .bankname = txtBankName.Text,
+                            .todaydate = DateTime.Now.Date,
+                            .modifiedby = userSession,
+                            .bankid = txtBankID.Text,
+                            .companyid = globalVariables.selectedCompanyID
+                        })
+                    End Using
                 Else
                     errorEvent = "Save"
-                    strSQL = "INSERT INTO " & selectedDatabaseName & ".dbo.TBL_BANK (Bank_ID, Bank_Name,CR_DATE,CR_BY,COM_ID) VALUES (@Bank_ID,@Bank_Name,getdate(),'" & userSession & "','" & globalVariables.selectedCompanyID & "')"
+                    strSQL = "
+                    INSERT INTO TBL_BANK 
+                    (BANK_ID, BANK_NAME, CR_DATE, CR_BY, MD_DATE, MD_BY, COM_ID) 
+                    VALUES 
+                    (@bankid, @bankname, @crdate, @crby, @mddate, @mdby, @companyid)"
+
+                    Using connection As New SqlConnection(connectionString)
+                        connection.Open()
+                        connection.Execute(strSQL, New With {
+                            .bankid = txtBankID.Text,
+                            .bankname = txtBankName.Text,
+                            .crdate = DateTime.Now.Date,
+                            .crby = userSession,
+                            .mddate = DateTime.Now.Date,
+                            .mdby = userSession,
+                            .companyid = globalVariables.selectedCompanyID
+                        })
+                    End Using
                 End If
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@Bank_ID", Trim(txtBankID.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@Bank_Name", Trim(txtBankName.Text))
-                If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
 
                 If save = True Then
                     If isEditClicked Then
@@ -78,18 +109,55 @@ Public Class frmBank
                     End If
 
                 End If
-
             Catch ex As Exception
-                MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
-                inputErrorLog(Me.Text, "" & Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-            Finally
-                dbConnections.dReader.Close()
-                connectionClose()
-                UserAuthorize = False
+                'MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)                
+                MessageBox.Show(ex.Message)
             End Try
         End If
-        Return save
     End Function
+
+    'Private Function save() As Boolean
+    '    save = False
+
+    '    Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
+    '    If conf = vbYes Then
+    '        If isDataValid() = False Then
+    '            Exit Function
+    '        End If
+    '        Try
+    '            connectionStaet()
+    '            If isEditClicked Then
+    '                errorEvent = "Edit"
+    '                strSQL = "UPDATE " & selectedDatabaseName & ".dbo.TBL_BANK SET Bank_Name =@Bank_Name,MD_DATE=getdate(),MD_BY='" & userSession & "' WHERE Bank_ID=@Bank_ID and COM_ID='" & globalVariables.selectedCompanyID & "'"
+    '            Else
+    '                errorEvent = "Save"
+    '                strSQL = "INSERT INTO " & selectedDatabaseName & ".dbo.TBL_BANK (Bank_ID, Bank_Name,CR_DATE,CR_BY,COM_ID) VALUES (@Bank_ID,@Bank_Name,getdate(),'" & userSession & "','" & globalVariables.selectedCompanyID & "')"
+    '            End If
+    '            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@Bank_ID", Trim(txtBankID.Text))
+    '            dbConnections.sqlCommand.Parameters.AddWithValue("@Bank_Name", Trim(txtBankName.Text))
+    '            If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
+
+    '            If save = True Then
+    '                If isEditClicked Then
+    '                    AuditDelete(Me.Text, userSession, userName, txtBankID.Text, txtBankName.Text + "(Edit)")
+    '                Else
+    '                    AuditDelete(Me.Text, userSession, userName, txtBankID.Text, txtBankName.Text + "(Saved)")
+    '                End If
+
+    '            End If
+
+    '        Catch ex As Exception
+    '            MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+    '            inputErrorLog(Me.Text, "" & Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
+    '        Finally
+    '            dbConnections.dReader.Close()
+    '            connectionClose()
+    '            UserAuthorize = False
+    '        End Try
+    '    End If
+    '    Return save
+    'End Function
 
     Private Function delete() As Boolean
         errorEvent = "Delete"

@@ -66,6 +66,7 @@ Partial Class frmReportMenu
         Me.Label9 = New System.Windows.Forms.Label()
         Me.btnDebtors = New System.Windows.Forms.Button()
         Me.GroupBox4 = New System.Windows.Forms.GroupBox()
+        Me.btnActualMachineReturnRpt = New System.Windows.Forms.Button()
         Me.Label30 = New System.Windows.Forms.Label()
         Me.Label17 = New System.Windows.Forms.Label()
         Me.Label16 = New System.Windows.Forms.Label()
@@ -93,6 +94,7 @@ Partial Class frmReportMenu
         Me.Label28 = New System.Windows.Forms.Label()
         Me.Label29 = New System.Windows.Forms.Label()
         Me.txtQNo = New System.Windows.Forms.TextBox()
+        Me.btnDisposedMachineList = New System.Windows.Forms.Button()
         Me.GroupBox1.SuspendLayout()
         Me.GroupBox2.SuspendLayout()
         Me.GroupBox3.SuspendLayout()
@@ -476,7 +478,7 @@ Partial Class frmReportMenu
         Me.GroupBox3.Margin = New System.Windows.Forms.Padding(4)
         Me.GroupBox3.Name = "GroupBox3"
         Me.GroupBox3.Padding = New System.Windows.Forms.Padding(4)
-        Me.GroupBox3.Size = New System.Drawing.Size(221, 616)
+        Me.GroupBox3.Size = New System.Drawing.Size(221, 706)
         Me.GroupBox3.TabIndex = 12
         Me.GroupBox3.TabStop = False
         Me.GroupBox3.Text = "Invoice Reports"
@@ -593,6 +595,8 @@ Partial Class frmReportMenu
         '
         'GroupBox4
         '
+        Me.GroupBox4.Controls.Add(Me.btnDisposedMachineList)
+        Me.GroupBox4.Controls.Add(Me.btnActualMachineReturnRpt)
         Me.GroupBox4.Controls.Add(Me.Label30)
         Me.GroupBox4.Controls.Add(Me.Label17)
         Me.GroupBox4.Controls.Add(Me.Label16)
@@ -606,10 +610,20 @@ Partial Class frmReportMenu
         Me.GroupBox4.Margin = New System.Windows.Forms.Padding(4)
         Me.GroupBox4.Name = "GroupBox4"
         Me.GroupBox4.Padding = New System.Windows.Forms.Padding(4)
-        Me.GroupBox4.Size = New System.Drawing.Size(221, 539)
+        Me.GroupBox4.Size = New System.Drawing.Size(221, 626)
         Me.GroupBox4.TabIndex = 13
         Me.GroupBox4.TabStop = False
         Me.GroupBox4.Text = "Machine Reports"
+        '
+        'btnActualMachineReturnRpt
+        '
+        Me.btnActualMachineReturnRpt.Location = New System.Drawing.Point(20, 466)
+        Me.btnActualMachineReturnRpt.Margin = New System.Windows.Forms.Padding(4)
+        Me.btnActualMachineReturnRpt.Name = "btnActualMachineReturnRpt"
+        Me.btnActualMachineReturnRpt.Size = New System.Drawing.Size(184, 63)
+        Me.btnActualMachineReturnRpt.TabIndex = 51
+        Me.btnActualMachineReturnRpt.Text = "Actual Machine Return Report (Baed on Stock)"
+        Me.btnActualMachineReturnRpt.UseVisualStyleBackColor = True
         '
         'Label30
         '
@@ -897,6 +911,16 @@ Partial Class frmReportMenu
         Me.txtQNo.Size = New System.Drawing.Size(145, 22)
         Me.txtQNo.TabIndex = 48
         '
+        'btnDisposedMachineList
+        '
+        Me.btnDisposedMachineList.Location = New System.Drawing.Point(20, 555)
+        Me.btnDisposedMachineList.Margin = New System.Windows.Forms.Padding(4)
+        Me.btnDisposedMachineList.Name = "btnDisposedMachineList"
+        Me.btnDisposedMachineList.Size = New System.Drawing.Size(184, 63)
+        Me.btnDisposedMachineList.TabIndex = 52
+        Me.btnDisposedMachineList.Text = "Disposed Machine List"
+        Me.btnDisposedMachineList.UseVisualStyleBackColor = True
+        '
         'frmReportMenu
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(8.0!, 16.0!)
@@ -1020,4 +1044,6 @@ Partial Class frmReportMenu
     Friend WithEvents btnInternalCancelledReport As Button
     Friend WithEvents Label33 As Label
     Friend WithEvents btnInvoiceListMonthForm As Button
+    Friend WithEvents btnActualMachineReturnRpt As Button
+    Friend WithEvents btnDisposedMachineList As Button
 End Class

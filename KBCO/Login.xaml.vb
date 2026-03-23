@@ -154,6 +154,37 @@ Public Class Login
         End If
     End Sub
 
+    Private Sub CheckForUrl()
+        Dim zipUrl As String = ""
+    End Sub
+
+    Private Sub CheckForUpdates()
+        Try
+            Dim currentVersion = globalVariables.KBridgeVersion.Trim()
+            Dim versionUrl As String = "https://raw.githubusercontent.com/gagantillekeratne97/kbco-update/main/version.txt?nocache=" & DateTime.Now.Ticks.ToString()
+            Using client As New System.Net.WebClient()
+                Dim latestVersion As String = client.DownloadString(versionUrl).Trim()
+                If latestVersion <> currentVersion Then
+                    Dim result As DialogResult = MessageBox.Show(
+                    "A new update (v" & latestVersion & ") is available!" & Environment.NewLine &
+                    "Do you want to update now?",
+                    "Update Available",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information
+                )
+                    If result = DialogResult.Yes Then
+                        Dim zipUrl As String = "https://raw.githubusercontent.com/gagantillekeratne97/kbco-update/main/Releases/update_1.6.zip?nocache=" & DateTime.Now.Ticks.ToString()
+                        Dim installPath As String = Application.StartupPath
+                        Process.Start("KBSoftwareUpdate.exe", """" & zipUrl & """ """ & installPath & """")
+                        Application.Exit()
+                    End If
+                End If
+            End Using
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+        End Try
+    End Sub
+
     Private Sub btnLogin_Click(ByVal sender As System.Object, ByVal e As System.Windows.RoutedEventArgs) Handles btnLogin.Click
         Dim decryptedpassword As String
         Try
@@ -163,7 +194,7 @@ Public Class Login
                 GetUserCode()
             End If
             strSQL = "SELECT [USERHED_PASSWORD] FROM [" & selectedDatabaseName & "].[dbo].[TBLU_USERHED] WHERE [USERHED_USERCODE] =@TxtUserCode AND [USERHED_ACTIVEUSER] ='1'"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection) '//compare location with DB
+                        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection) '//compare location with DB
             hashedPassed = MD5obj.EncryptPassword(txtPassword.Password)
             dbConnections.sqlCommand.Parameters.AddWithValue("@TxtUserCode", selectedUserName)
             decryptedpassword = MD5obj.DecryptPassword(dbConnections.sqlCommand.ExecuteScalar)
@@ -187,11 +218,13 @@ Public Class Login
 
                     If Not IsDBNull(dbConnections.sqlCommand.ExecuteScalar) Then
                         selectedCompanyID = dbConnections.sqlCommand.ExecuteScalar
+                        CheckForUpdates()
                         frmMDImain.Show()
                         frmLoginWinForm.Hide()
                     End If
 
                 Else
+                    CheckForUpdates()
                     frmSelectLoginCompany1.Show()
                     frmLoginWinForm.Hide()
                 End If

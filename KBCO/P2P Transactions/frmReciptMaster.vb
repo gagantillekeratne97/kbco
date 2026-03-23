@@ -10,6 +10,10 @@ Imports Newtonsoft.Json
 Imports Microsoft.Win32
 Imports System.Text
 Imports System.ComponentModel.Design
+Imports System.Threading.Tasks
+Imports System.Configuration
+Imports Dapper
+Imports System.Globalization
 Public Class frmReciptMaster
     Dim srilankaTimeZone As TimeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Sri Lanka Standard Time")
     Dim utcNow As DateTime = DateTime.UtcNow
@@ -27,14 +31,15 @@ Public Class frmReciptMaster
     Dim generalValObj As New generalValidation
     Const WMCLOSE As String = "WmClose"
     Private _lastFormSize As Integer
-
+    '//Get connection String 
+    Dim connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     '//Active form perform btn click case
     Public Async Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
             Case "New"
                 Me.createNew()
             Case "Save"
-                If Await Something() Then FormClear()
+                If Await save() Then FormClear()
             Case "Edit"
                 Me.FormEdit()
             Case "Delete"
@@ -55,138 +60,313 @@ Public Class frmReciptMaster
         If conf = vbYes Then FormClear()
     End Sub
 
-    Private Async Function Something() As Threading.Tasks.Task(Of Boolean)
-        Dim isSaved As Boolean = Await save()
-        Return isSaved
-    End Function
-
-    Private Async Function save() As Threading.Tasks.Task(Of Boolean)
-        '//save = False
-
-        If Not canCreate Then
-            Exit Function
-        End If
-
-        If isDataValid() = False Then
-            Exit Function
-        End If
-
-        Dim IsEdit As Boolean = False
-        Dim InvoiceList As String = ""
-        Dim IsFirstSlectedRecord As Boolean = True
-        Dim hasRecord As Boolean = False
+    Private Async Function save() As Task(Of Boolean)
+        Const ErrorEvent As String = "Save Receipt"
+        If Not canCreate OrElse Not isDataValid() Then Return False
         Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
-        If conf = vbYes Then
-            dgGrid.EndEdit()
-            dgGrid.CommitEdit(DataGridViewDataErrorContexts.Formatting)
-            If isDataValid() = False Then
-                Exit Function
-            End If
-            Dim NextReciptID As String = GetReciptID()
-            txtReciptID.Text = NextReciptID
-            Try
-                For Each row As DataGridViewRow In dgGrid.Rows
-                    If dgGrid.Rows(row.Index).Cells("CHECK").Value = True Then
-                        hasRecord = True
-                        If IsFirstSlectedRecord = True Then
-                            InvoiceList = dgGrid.Rows(row.Index).Cells("INV_NO").Value
-                            IsFirstSlectedRecord = False
-                        Else
-                            InvoiceList = InvoiceList + "," + dgGrid.Rows(row.Index).Cells("INV_NO").Value
-                        End If
-                    End If
-                Next
+        If conf <> vbYes Then Return False
+        dgGrid.EndEdit()
+        dgGrid.CommitEdit(DataGridViewDataErrorContexts.Formatting)
+        If Not isDataValid() Then Return False
 
-                If hasRecord = False Then
-                    MessageBox.Show("Please select invoices to be receipt.", "Invalid selection.", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                    Exit Function
-                End If
+        ' Collect selected rows BEFORE opening connection
+        Dim selectedRows As List(Of DataGridViewRow) = (
+        From row As DataGridViewRow In dgGrid.Rows
+        Where row.Cells("CHECK").Value IsNot Nothing AndAlso
+              CBool(row.Cells("CHECK").Value) = True
+        ).ToList()
 
-                errorEvent = "Save"
-                Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/receipts/addreceiptmaster"
-                Dim utcNow As DateTime = DateTime.UtcNow
-
-                ' Get the Sri Lanka time zone info
-                Dim sriLankaTimeZone As TimeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Sri Lanka Standard Time")
-
-                ' Convert current UTC time to Sri Lanka time
-                Dim sriLankaTime As DateTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, sriLankaTimeZone)
-
-                Dim receiptDet As New List(Of ReceiptDetails)
-                Dim receipt As New TBL_RECEIPT_MASTER With {
-       .COM_ID = globalVariables.selectedCompanyID,
-       .RECEIPT_ID = txtReciptID.Text,
-       .AG_ID = DBNull.Value.ToString(),
-       .AG_NAME = DBNull.Value.ToString(),
-       .RECEIPT_DATE = sriLankaTime,
-       .CUS_ID = txtCustomerID.Text,
-       .CUS_NAME = txtCustomerName.Text,
-       .PAY_TYPE = cmbReciptType.Text,
-       .PAY_METHOD = cmbPaymentMethod.Text,
-       .CHEQUE_NO = txtChequeNo.Text,
-       .BANK_ID = txtBankID.Text,
-       .BANK_NAME = lblBankName.Text,
-       .RECEIVED_BY = txtRecivedBy.Text,
-       .RECEIVED_BY_NAME = lblTechName.Text,
-       .PAYMENT_AMOUNT = Convert.ToDecimal(txtPaymentAmount.Text),
-       .ADV_PAYMENT = Convert.ToDecimal(txtAPAmount.Text),
-       .PAY_BY_ADV_AMOUNT = cbAPUse.CheckState,
-       .BF_PAYMENT = txtBFOutstanding.Text,
-       .AMOUNT_IN_WORD = txtAmountInWords.Text,
-       .REMARKS = txtRemarks.Text,
-       .RECEIPT_TOTAL = Convert.ToDecimal(txtReciptTotal.Text),
-       .IS_PRINTED = False,
-       .CR_BY = userSession,
-       .CR_DATE = sriLankaTime,
-       .INVOICE_LIST = InvoiceList
-   }
-                For Each row As DataGridViewRow In dgGrid.Rows
-                    If dgGrid.Rows(row.Index).Cells("CHECK").Value = True Then
-                        Dim receiptDetails As New ReceiptDetails With {
-                            .COM_ID = globalVariables.selectedCompanyID,
-                            .RECIPT_ID = Trim(txtReciptID.Text),
-                            .AG_ID = dgGrid.Rows(row.Index).Cells("AG_ID").Value.ToString(),
-                            .AG_NAME = dgGrid.Rows(row.Index).Cells("AG_NAME").Value.ToString(),
-                            .CUS_ID = txtCustomerID.Text,
-                            .INV_NO = dgGrid.Rows(row.Index).Cells("INV_NO").Value.ToString(),
-                            .IN_DATE = CDate(dgGrid.Rows(row.Index).Cells("INV_DATE").Value.ToString()),
-                            .CUS_LOC = dgGrid.Rows(row.Index).Cells("INV_LOC").Value.ToString(),
-                            .INV_AMOUNT = CDbl(dgGrid.Rows(row.Index).Cells("INV_VAL").Value.ToString()),
-                            .PAYMENT_AMOUNT = CDbl(dgGrid.Rows(row.Index).Cells("PAY_VAL").Value.ToString()),
-                            .BALANCE_PAYMENT = CDbl(dgGrid.Rows(row.Index).Cells("BAL").Value.ToString()),
-                            .TECH_CODE = DBNull.Value.ToString(),
-                            .REP_CODE = txtRecivedBy.Text
-                            }
-                        If dgGrid.Rows(row.Index).Cells("BAL").Value = 0 Then
-                            receiptDetails.FULL_PAID = True
-                        Else
-                            receiptDetails.FULL_PAID = False
-                        End If
-                        receipt.ReceiptDetails.Add(receiptDetails)
-                    End If
-                Next
-                Using client As New HttpClient()
-                    Dim json As String = JsonConvert.SerializeObject(receipt)
-                    Dim content As New StringContent(json, Encoding.UTF8, "application/json")
-                    Dim response As HttpResponseMessage = Await client.PostAsync(apiUrl, content)
-                    If response.IsSuccessStatusCode Then
-                        Dim isSuccess As Boolean = Await response.Content.ReadAsStringAsync()
-                        If isSuccess = True Then
-                            MessageBox.Show("Receipt Successfully Saved.")
-                        End If
-                        Return isSuccess
-                    Else
-                        Return $"Error: {response.StatusCode.ToString()} - {Await response.Content.ReadAsStringAsync()}"
-                        Return False
-                    End If
-                End Using
-
-            Catch ex As Exception
-                Return False
-            End Try
+        If selectedRows.Count = 0 Then
+            MessageBox.Show("Please select invoices to be receipted.", "Invalid Selection.",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information)
+            Return False
         End If
-        Return False
+
+        Dim receiptID As String = GetReciptID()
+        If String.IsNullOrWhiteSpace(receiptID) Then Return False
+        txtReciptID.Text = receiptID
+
+        Dim invoiceList As String = String.Join(",",
+        selectedRows.Select(Function(r) r.Cells("INV_NO").Value?.ToString()))
+
+        ' Snapshot all UI values before async work
+        Dim snap As New ReceiptSnapshot With {
+            .CompanyID = globalVariables.selectedCompanyID,
+            .ReceiptID = receiptID,
+            .CustomerID = txtCustomerID.Text.Trim(),
+            .CustomerName = txtCustomerName.Text.Trim(),
+            .PayType = cmbReciptType.Text.Trim(),
+            .PayMethod = cmbPaymentMethod.Text.Trim(),
+            .ChequeNo = If(String.IsNullOrWhiteSpace(txtChequeNo.Text), Nothing, txtChequeNo.Text.Trim()),
+            .BankID = If(String.IsNullOrWhiteSpace(txtBankID.Text), Nothing, txtBankID.Text.Trim()),
+            .BankName = If(String.IsNullOrWhiteSpace(txtBankID.Text), Nothing, lblBankName.Text.Trim()),
+            .ReceivedBy = txtRecivedBy.Text.Trim(),
+            .ReceivedByName = lblTechName.Text.Trim(),
+            .PaymentAmount = ParseDouble(txtPaymentAmount.Text),
+            .AdvPayment = If(String.IsNullOrWhiteSpace(txtAPAmount.Text), 0, ParseDouble(txtAPAmount.Text)),
+            .PayByAdvAmount = cbAPUse.CheckState,
+            .BFPayment = ParseDouble(txtBFOutstanding.Text),
+            .AmountInWords = txtAmountInWords.Text.Trim(),
+            .Remarks = If(String.IsNullOrWhiteSpace(txtRemarks.Text), Nothing, txtRemarks.Text.Trim()),
+            .ReceiptTotal = ParseDouble(txtReciptTotal.Text),
+            .InvoiceList = invoiceList,
+            .Outstanding = ParseDouble(txtOutStanding.Text),
+            .BalanceTotal = ParseDouble(txtBalanceTotal.Text),
+            .UserSession = userSession
+        }
+
+        ' Snapshot grid rows
+        Dim lineItems = selectedRows.Select(Function(r) New ReceiptLineItem With {
+        .AgID = r.Cells("AG_ID").Value,
+        .AgName = r.Cells("AG_NAME").Value,
+        .InvNo = r.Cells("INV_NO").Value?.ToString(),
+        .InvDate = CDate(r.Cells("INV_DATE").Value),
+        .CusLoc = r.Cells("INV_LOC").Value?.ToString(),
+        .InvAmount = CDbl(r.Cells("INV_VAL").Value),
+        .PaymentAmount = CDbl(r.Cells("PAY_VAL").Value),
+        .Balance = CDbl(r.Cells("BAL").Value)
+        }).ToList()
+
+        Try
+            Using conn As New SqlConnection(connectionString)
+                Await conn.OpenAsync()
+                Using tran = conn.BeginTransaction()
+                    Try
+                        ' 1. Insert Receipt Master
+                        Await conn.ExecuteAsync(
+                        "INSERT INTO TBL_RECIPT_MASTER (
+                            COM_ID, RECIPT_ID, AG_ID, AG_NAME, RECIPT_DATE, CUS_ID, CUS_NAME,
+                            PAY_TYPE, PAY_METHOD, CHEQUE_NO, BANK_ID, BANK_NAME, RECIVED_BY,
+                            RECIVED_BY_NAME, PAYMENT_AMOUNT, ADV_PAYMENT, PAY_BY_ADV_AMOUNT,
+                            BF_PAYMENT, AMOUNT_IN_WORD, REMARKS, RECIPT_TOTAL, IS_PRINTED,
+                            CR_BY, CR_DATE, INVOICE_LIST)
+                         VALUES (
+                            @CompanyID, @ReceiptID, NULL, NULL, GETDATE(), @CustomerID, @CustomerName,
+                            @PayType, @PayMethod, @ChequeNo, @BankID, @BankName, @ReceivedBy,
+                            @ReceivedByName, @PaymentAmount, @AdvPayment, @PayByAdvAmount,
+                            @BFPayment, @AmountInWords, @Remarks, @ReceiptTotal, 0,
+                            @UserSession, GETDATE(), @InvoiceList)",
+                        snap, tran)
+
+                        ' 2. Process each selected invoice
+                        For Each item In lineItems
+                            Dim isFullPaid As Boolean = (item.Balance <= 0)
+                            Dim isOverPaid As Boolean = (item.Balance < 0)
+                            Dim invStatus As String = If(isOverPaid, "OVERPAID",
+                                                      If(isFullPaid, "RECIPTED", "PARTLY PAID"))
+
+                            ' Insert Receipt Detail
+                            Await conn.ExecuteAsync(
+                                "INSERT INTO TBL_RECIPT_DET (
+                                COM_ID, RECIPT_ID, AG_ID, AG_NAME, CUS_ID, INV_NO, INV_DATE,
+                                CUS_LOC, INV_AMOUNT, PAYMENT_AMOUNT, BALANCE_PAYMENT,
+                                TECH_CODE, REP_CODE, FULL_PAID)
+                             VALUES (
+                                @CompanyID, @ReceiptID, @AgID, @AgName, @CustomerID, @InvNo, @InvDate,
+                                @CusLoc, @InvAmount, @PaymentAmount, @Balance,
+                                NULL, @ReceivedBy, @IsFullPaid)",
+                                New With {
+                                    snap.CompanyID, snap.ReceiptID, item.AgID, item.AgName,
+                                    snap.CustomerID, item.InvNo, item.InvDate, item.CusLoc,
+                                    item.InvAmount, item.PaymentAmount, item.Balance,
+                                    snap.ReceivedBy, isFullPaid
+                                }, tran)
+
+                            ' Update Invoice Master
+                            Await conn.ExecuteAsync(
+                                "UPDATE TBL_INVOICE_MASTER
+                             SET RECIPT_ID = @ReceiptID, FULL_PAID = @IsFullPaid, INV_STATUS_T = @InvStatus
+                             WHERE COM_ID = @CompanyID AND INV_NO = @InvNo",
+                                New With {snap.CompanyID, snap.ReceiptID, item.InvNo, isFullPaid, invStatus},
+                                tran)
+
+                            ' Upsert Customer Debtors
+                            Dim debtorExists As Boolean = Await conn.ExecuteScalarAsync(Of Boolean)(
+                                "SELECT CAST(COUNT(1) AS BIT) FROM TBL_CUS_DEBTORS
+                             WHERE COM_ID = @CompanyID AND CUS_ID = @CustomerID",
+                                New With {snap.CompanyID, snap.CustomerID}, tran)
+
+                            Dim debtorSql As String = If(debtorExists,
+                                "UPDATE TBL_CUS_DEBTORS SET
+                                LAST_UPDATE_DATE = GETDATE(), LAST_PAYMENT_AMOUNT = @PaymentAmount,
+                                LAST_RECIPT_ID = @ReceiptID, DEBTORS_OUTSTANDING = @Outstanding,
+                                ADV_PAYMENT = @AdvPayment, BF_DEBTORS = @BalanceTotal,
+                                RECIVED_BY = @ReceivedBy, LAST_PAY_METHOD = @PayMethod,
+                                CHEQUE_NO = @ChequeNo, BANK_ID = @BankID, BANK_NANE = @BankName
+                             WHERE COM_ID = @CompanyID AND CUS_ID = @CustomerID",
+                                "INSERT INTO TBL_CUS_DEBTORS (
+                                COM_ID, CUS_ID, LAST_UPDATE_DATE, LAST_PAYMENT_AMOUNT, LAST_RECIPT_ID,
+                                DEBTORS_OUTSTANDING, ADV_PAYMENT, BF_DEBTORS, RECIVED_BY,
+                                LAST_PAY_METHOD, CHEQUE_NO, BANK_ID, BANK_NANE)
+                             VALUES (
+                                @CompanyID, @CustomerID, GETDATE(), @PaymentAmount, @ReceiptID,
+                                @Outstanding, @AdvPayment, @BalanceTotal, @ReceivedBy,
+                                @PayMethod, @ChequeNo, @BankID, @BankName)")
+
+                            Await conn.ExecuteAsync(debtorSql,
+                                New With {
+                                    snap.CompanyID, snap.CustomerID, item.PaymentAmount,
+                                    snap.ReceiptID, snap.Outstanding, snap.AdvPayment,
+                                    snap.BalanceTotal, snap.ReceivedBy, snap.PayMethod,
+                                    snap.ChequeNo, snap.BankID, snap.BankName
+                                }, tran)
+                        Next
+
+                        tran.Commit()
+                        MessageBox.Show("Transaction Saved Successfully.", "Saved.",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Information)
+                        Return True
+                    Catch ex As Exception
+                        tran.Rollback()
+                        Throw ' Re-throw to outer catch
+                    End Try
+                End Using
+            End Using
+        Catch ex As Exception
+            MsgBox(ex.Message)
+            Return False
+        End Try
+
     End Function
+
+    ' ─── Helper: parse doubles safely from formatted text fields ───
+    Private Shared Function ParseDouble(raw As String) As Double
+        Dim result As Double
+        Return If(Double.TryParse(raw.Replace(",", ""), result), result, 0.0)
+    End Function
+
+    ' Private Async Function Something() As Threading.Tasks.Task(Of Boolean)
+    '     Dim isSaved As Boolean = Await save()
+    '     Return isSaved
+    ' End Function
+
+    ' Private Async Function save() As Threading.Tasks.Task(Of Boolean)
+    '     '//save = False
+
+    '     If Not canCreate Then
+    '         Exit Function
+    '     End If
+
+    '     If isDataValid() = False Then
+    '         Exit Function
+    '     End If
+
+    '     Dim IsEdit As Boolean = False
+    '     Dim InvoiceList As String = ""
+    '     Dim IsFirstSlectedRecord As Boolean = True
+    '     Dim hasRecord As Boolean = False
+    '     Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
+    '     If conf = vbYes Then
+    '         dgGrid.EndEdit()
+    '         dgGrid.CommitEdit(DataGridViewDataErrorContexts.Formatting)
+    '         If isDataValid() = False Then
+    '             Exit Function
+    '         End If
+    '         Dim NextReciptID As String = Await GetReciptID()
+    '         txtReciptID.Text = NextReciptID
+    '         Try
+    '             For Each row As DataGridViewRow In dgGrid.Rows
+    '                 If dgGrid.Rows(row.Index).Cells("CHECK").Value = True Then
+    '                     hasRecord = True
+    '                     If IsFirstSlectedRecord = True Then
+    '                         InvoiceList = dgGrid.Rows(row.Index).Cells("INV_NO").Value
+    '                         IsFirstSlectedRecord = False
+    '                     Else
+    '                         InvoiceList = InvoiceList + ", " + dgGrid.Rows(row.Index).Cells("INV_NO").Value
+    '                     End If
+    '                 End If
+    '             Next
+
+    '             If hasRecord = False Then
+    '                 MessageBox.Show("Please select invoices to be receipt.", "Invalid selection.", MessageBoxButtons.OK, MessageBoxIcon.Information)
+    '                 Exit Function
+    '             End If
+
+    '             errorEvent = "Save"
+    '             Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/receipts/addreceiptmaster"
+    '             Dim utcNow As DateTime = DateTime.UtcNow
+
+    '             ' Get the Sri Lanka time zone info
+    '             Dim sriLankaTimeZone As TimeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Sri Lanka Standard Time")
+
+    '             ' Convert current UTC time to Sri Lanka time
+    '             Dim sriLankaTime As DateTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, sriLankaTimeZone)
+
+    '             Dim receiptDet As New List(Of ReceiptDetails)
+    '             Dim receipt As New TBL_RECEIPT_MASTER With {
+    '    .COM_ID = globalVariables.selectedCompanyID,
+    '    .RECEIPT_ID = txtReciptID.Text,
+    '    .AG_ID = DBNull.Value.ToString(),
+    '    .AG_NAME = DBNull.Value.ToString(),
+    '    .RECEIPT_DATE = sriLankaTime,
+    '    .CUS_ID = txtCustomerID.Text,
+    '    .CUS_NAME = txtCustomerName.Text,
+    '    .PAY_TYPE = cmbReciptType.Text,
+    '    .PAY_METHOD = cmbPaymentMethod.Text,
+    '    .CHEQUE_NO = txtChequeNo.Text,
+    '    .BANK_ID = txtBankID.Text,
+    '    .BANK_NAME = lblBankName.Text,
+    '    .RECEIVED_BY = txtRecivedBy.Text,
+    '    .RECEIVED_BY_NAME = lblTechName.Text,
+    '    .PAYMENT_AMOUNT = Convert.ToDecimal(txtPaymentAmount.Text),
+    '    .ADV_PAYMENT = Convert.ToDecimal(txtAPAmount.Text),
+    '    .PAY_BY_ADV_AMOUNT = cbAPUse.CheckState,
+    '    .BF_PAYMENT = txtBFOutstanding.Text,
+    '    .AMOUNT_IN_WORD = txtAmountInWords.Text,
+    '    .REMARKS = txtRemarks.Text,
+    '    .RECEIPT_TOTAL = Convert.ToDecimal(txtReciptTotal.Text),
+    '    .IS_PRINTED = False,
+    '    .CR_BY = userSession,
+    '    .CR_DATE = sriLankaTime,
+    '    .INVOICE_LIST = InvoiceList
+    '}
+    '             For Each row As DataGridViewRow In dgGrid.Rows
+    '                 If dgGrid.Rows(row.Index).Cells("CHECK").Value = True Then
+    '                     Dim receiptDetails As New ReceiptDetails With {
+    '                         .COM_ID = globalVariables.selectedCompanyID,
+    '                         .RECIPT_ID = Trim(txtReciptID.Text),
+    '                         .AG_ID = dgGrid.Rows(row.Index).Cells("AG_ID").Value.ToString(),
+    '                         .AG_NAME = dgGrid.Rows(row.Index).Cells("AG_NAME").Value.ToString(),
+    '                         .CUS_ID = txtCustomerID.Text,
+    '                         .INV_NO = dgGrid.Rows(row.Index).Cells("INV_NO").Value.ToString(),
+    '                         .IN_DATE = CDate(dgGrid.Rows(row.Index).Cells("INV_DATE").Value.ToString()),
+    '                         .CUS_LOC = dgGrid.Rows(row.Index).Cells("INV_LOC").Value.ToString(),
+    '                         .INV_AMOUNT = CDbl(dgGrid.Rows(row.Index).Cells("INV_VAL").Value.ToString()),
+    '                         .PAYMENT_AMOUNT = CDbl(dgGrid.Rows(row.Index).Cells("PAY_VAL").Value.ToString()),
+    '                         .BALANCE_PAYMENT = CDbl(dgGrid.Rows(row.Index).Cells("BAL").Value.ToString()),
+    '                         .TECH_CODE = DBNull.Value.ToString(),
+    '                         .REP_CODE = txtRecivedBy.Text
+    '                         }
+    '                     If dgGrid.Rows(row.Index).Cells("BAL").Value = 0 Then
+    '                         receiptDetails.FULL_PAID = True
+    '                     Else
+    '                         receiptDetails.FULL_PAID = False
+    '                     End If
+    '                     receipt.ReceiptDetails.Add(receiptDetails)
+    '                 End If
+    '             Next
+    '             Using client As New HttpClient()
+    '                 Dim json As String = JsonConvert.SerializeObject(receipt)
+    '                 Dim content As New StringContent(json, Encoding.UTF8, "application/json")
+    '                 Dim response As HttpResponseMessage = Await client.PostAsync(apiUrl, content)
+    '                 If response.IsSuccessStatusCode Then
+    '                     Dim isSuccess As Boolean = Await response.Content.ReadAsStringAsync()
+    '                     If isSuccess = True Then
+    '                         MessageBox.Show("Receipt Successfully Saved.")
+    '                     End If
+    '                     Return isSuccess
+    '                 Else
+    '                     Return $"Error:  {response.StatusCode.ToString()} - {Await response.Content.ReadAsStringAsync()}"
+    '                     Return False
+    '                 End If
+    '             End Using
+
+    '         Catch ex As Exception
+    '             Return False
+    '         End Try
+    '     End If
+    '     Return False
+    ' End Function
 
     'Private Function save() As Boolean
     '    save = False
@@ -572,34 +752,60 @@ Public Class frmReciptMaster
     End Sub
 
     Private Async Sub Load_Cus_Debtors_info()
-        Dim Debtors_Out As Double = 0
-        Dim Adv_Payment As Double = 0
-        Dim BF_Out As Double = 0
+        Const errorEvent As String = "Load Customer Debtors info"
+        Try
+            Using connection As New SqlConnection(connectionString)
+                Await connection.OpenAsync()
+                Dim result = connection.QueryFirstOrDefault(Of CustomerDebtorsInfo)(
+                "SELECT TOP 1
+                    ISNULL(DEBTORS_OUTSTANDING, 0) AS DebtorsOutstanding,
+                    ISNULL(ADV_PAYMENT, 0)         AS AdvPayment,
+                    ISNULL(BF_DEBTORS, 0)          AS BFDebtors
+                 FROM TBL_CUS_DEBTORS
+                 WHERE COM_ID = @CompanyID AND CUS_ID = @CustomerID
+                 ORDER BY LAST_UPDATE_DATE DESC", New With {
+                 .CompanyID = globalVariables.selectedCompanyID,
+                 .CustomerID = txtCustomerID.Text.Trim()
+                 })
 
-        Dim companyID As String = globalVariables.selectedCompanyID
-        Dim customerID As String = txtCustomerID.Text.Trim()
-
-        Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/receipts/loadcustomerdebtorsinfor?companyID={companyID}&customerID={customerID}"
-        Using client As New HttpClient()
-            Try
-                Dim response As HttpResponseMessage = Await client.GetAsync(apiUrl)
-                Dim rowCount As Integer = 0
-                If response.IsSuccessStatusCode Then
-                    Dim json As String = Await response.Content.ReadAsStringAsync()
-                    Dim data As List(Of CustomerDebtorsInfo) = JsonConvert.DeserializeObject(Of List(Of CustomerDebtorsInfo))(json)
-                    For Each item As CustomerDebtorsInfo In data
-                        Debtors_Out = item.DebtorsOutstanding
-                        Adv_Payment = item.advancePayment
-                        BF_Out = item.BFOut
-                    Next
-                    txtBFOutstanding.Text = BF_Out.ToString("N2")
-                    txtAPAmount.Text = Adv_Payment.ToString("N2")
-                End If
-            Catch ex As Exception
-                MessageBox.Show(ex.Message)
-            End Try
-        End Using
+                Dim info As CustomerDebtorsInfo = If(result, New CustomerDebtorsInfo())
+                txtAPAmount.Text = info.advancePayment.ToString("N2")
+                txtBFOutstanding.Text = info.BFOut.ToString("N2")
+            End Using
+        Catch ex As Exception
+            MessageBox.Show(ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+        End Try
     End Sub
+
+    'Private Async Sub Load_Cus_Debtors_info()
+    '    Dim Debtors_Out As Double = 0
+    '    Dim Adv_Payment As Double = 0
+    '    Dim BF_Out As Double = 0
+
+    '    Dim companyID As String = globalVariables.selectedCompanyID
+    '    Dim customerID As String = txtCustomerID.Text.Trim()
+
+    '    Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/receipts/loadcustomerdebtorsinfor?companyID={companyID}&customerID={customerID}"
+    '    Using client As New HttpClient()
+    '        Try
+    '            Dim response As HttpResponseMessage = Await client.GetAsync(apiUrl)
+    '            Dim rowCount As Integer = 0
+    '            If response.IsSuccessStatusCode Then
+    '                Dim json As String = Await response.Content.ReadAsStringAsync()
+    '                Dim data As List(Of CustomerDebtorsInfo) = JsonConvert.DeserializeObject(Of List(Of CustomerDebtorsInfo))(json)
+    '                For Each item As CustomerDebtorsInfo In data
+    '                    Debtors_Out = item.DebtorsOutstanding
+    '                    Adv_Payment = item.advancePayment
+    '                    BF_Out = item.BFOut
+    '                Next
+    '                txtBFOutstanding.Text = BF_Out.ToString("N2")
+    '                txtAPAmount.Text = Adv_Payment.ToString("N2")
+    '            End If
+    '        Catch ex As Exception
+    '            MessageBox.Show(ex.Message)
+    '        End Try
+    '    End Using
+    'End Sub
 
     'Private Sub Load_Cus_Debtors_info()
     '    Dim Debtors_Out As Double = 0.0
@@ -973,143 +1179,334 @@ Public Class frmReciptMaster
     'End Function
 
     Private Sub load_Cus_info()
-        dgGrid.DataSource = Nothing
-        errorEvent = "Reading information"
+        Dim cusId As String = Trim(txtCustomerID.Text)
+        If String.IsNullOrWhiteSpace(cusId) Then Return
+
+        Dim comId As Integer = globalVariables.selectedCompanyID
         Dim hasRecord As Boolean = False
-        'dgGrid.Rows.Clear()
-        connectionStaet()
+
+        dgGrid.Rows.Clear()
 
         Try
-            '--- Get customer name from previous history
-            dbConnections.sqlCommand = New SqlCommand("usp_GetCustomerNameFromPrevHistory", dbConnections.sqlConnection)
-            dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader()
+            Using conn As New SqlConnection(connectionString)  ' ← your actual conn string source
+                conn.Open()
 
-            While dbConnections.dReader.Read()
-                txtCustomerName.Text = dbConnections.dReader("CUS_NAME").ToString()
-            End While
-            dbConnections.dReader.Close()
+                ' ── 1. Load customer name & basic info (from both possible sources) ──
+                ' We take the first non-null name we find
+                Dim customerInfo = conn.QueryFirstOrDefault(Of CustomerInfo)(
+                    "SELECT TOP 1 
+                    c.CUS_NAME, 
+                    ISNULL(v.IS_NBT, 0) AS IS_NBT, 
+                    ISNULL(v.IS_VAT, 0) AS IS_VAT
+                 FROM MTBL_CUSTOMER_MASTER c
+                 LEFT JOIN MTBL_VAT_MASTER v 
+                    ON c.COM_ID = v.COM_ID 
+                   AND c.VAT_TYPE_ID = v.VAT_TYPE_ID
+                 WHERE c.COM_ID = @COM_ID 
+                   AND c.CUS_ID = @CUS_ID",
+                    New With {.COM_ID = comId, .CUS_ID = cusId})
 
-            '--- Load previous invoice history
-            dbConnections.sqlCommand = New SqlCommand("usp_GetPrevInvoiceDetails", dbConnections.sqlConnection)
-            dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+                If customerInfo IsNot Nothing Then
+                    txtCustomerName.Text = customerInfo.CUS_NAME
+                End If
 
-            Dim da As New SqlDataAdapter(dbConnections.sqlCommand)
-            Dim ds As New DataSet()
-            da.Fill(ds)
+                ' ── 2. Load previous invoices (TBL_PREV_INV_HISTORY) ──
+                Dim prevInvoices = conn.Query(Of PrevInvoiceRow)(
+                    "SELECT 
+                    h.INV_DATE, 
+                    h.INV_NO, 
+                    h.REP_CODE, 
+                    h.REP_NAME, 
+                    h.DEPT, 
+                    h.CUS_ID, 
+                    h.CUS_NAME, 
+                    h.INV_VAL,
+                    cm.CUS_ADD1, 
+                    cm.CUS_ADD2
+                 FROM TBL_PREV_INV_HISTORY h
+                 LEFT JOIN MTBL_CUSTOMER_MASTER cm 
+                    ON h.COM_ID = cm.COM_ID 
+                   AND h.CUS_ID = cm.CUS_ID
+                 WHERE h.COM_ID = @COM_ID 
+                   AND h.CUS_ID = @CUS_ID 
+                   AND (h.RECIPT_ID IS NULL OR h.FULL_PAID = 0)
+                 ORDER BY h.INV_DATE",
+                    New With {.COM_ID = comId, .CUS_ID = cusId})
 
-            Dim InvList As New List(Of String)()
-            For Each row As DataRow In ds.Tables(0).Rows
-                If row("CUS_ID").ToString().Trim() = txtCustomerID.Text.Trim() Then
-                    Dim invVal As Decimal = row.Field(Of Decimal)("INV_VAL")
-                    Dim finalVal As Decimal = GetLastBalance(row("INV_NO").ToString(), invVal)
-
-                    Dim invAdd As String = If(IsDBNull(row("CUS_ADD1")), "", row("CUS_ADD1")) &
-                                       If(IsDBNull(row("CUS_ADD2")), "", " " & row("CUS_ADD2"))
-
-                    populatreDatagrid(row("INV_NO"), row("INV_DATE"), "N/A", "N/A", invAdd, finalVal.ToString("0.00"), "0.00", False, "0.00")
-
-                    txtRecivedBy.Text = row("REP_CODE").ToString()
+                For Each row In prevInvoices
                     hasRecord = True
+
+                    Dim balance As Decimal = GetLastBalance(row.INV_NO, row.INV_VAL)
+
+                    Dim address As String = If(row.CUS_ADD1, "") & " " & If(row.CUS_ADD2, "")
+
+                    populatreDatagrid(
+                        row.INV_NO,
+                        row.INV_DATE.ToString(),
+                        "N/A",
+                        "N/A",
+                        address.Trim(),
+                        balance.ToString("0.00", CultureInfo.InvariantCulture),
+                        "0.00",
+                        False,
+                        "0.00")
+
+                    txtRecivedBy.Text = row.REP_CODE   ' last one wins – or collect uniquely if needed
+                Next
+
+                ' ── 3. Load current/system invoices (TBL_INVOICE_MASTER) ──
+                Dim currentInvoices = conn.Query(Of CurrentInvoiceRow)(
+                    "SELECT 
+                    AG_ID, 
+                    INV_PERIOD_START, 
+                    INV_PERIOD_END, 
+                    INV_NO, 
+                    INV_DATE, 
+                    IS_NBT, 
+                    IS_VAT, 
+                    RENTAL_VAL, 
+                    INV_VAL, 
+                    INV_ADD3, 
+                    REP_CODE, 
+                    CUS_ID, 
+                    COM_ID
+                 FROM TBL_INVOICE_MASTER
+                 WHERE COM_ID = @COM_ID 
+                   AND CUS_ID = @CUS_ID 
+                   AND INV_STATUS_T IS NULL 
+                   AND (RECIPT_ID IS NULL OR FULL_PAID = 0)
+                 ORDER BY INV_AUTO_NUM",
+                    New With {.COM_ID = comId, .CUS_ID = cusId})
+
+                Dim seenInvoices As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
+
+                For Each inv In currentInvoices
+                    If seenInvoices.Contains(inv.INV_NO) Then Continue For
+                    seenInvoices.Add(inv.INV_NO)
+
+                    hasRecord = True
+
+                    Dim baseValue As Decimal = inv.INV_VAL
+                    Dim finalValue As Decimal = baseValue
+
+                    If inv.IS_VAT Then
+                        finalValue += (baseValue / 100) * GetVATP(inv.INV_NO)
+                    End If
+
+                    If inv.IS_NBT Then
+                        finalValue += (finalValue / 100) * GetNBTP(inv.INV_NO)
+                    End If
+
+                    Dim balance As Decimal = GetLastBalance(inv.INV_NO, finalValue)
+
+                    Dim skip As Boolean = False
+                    If inv.COM_ID = "003" Then
+                        ' special rule
+                    ElseIf inv.INV_DATE.Year = 2019 AndAlso inv.INV_DATE.Month = 6 Then
+                        skip = True
+                    End If
+
+                    If Not skip Then
+                        Dim agId As String
+                        If inv.AG_ID Is Nothing Then
+                            agId = "N/A"
+                        Else
+                            agId = inv.AG_ID.ToString()
+                        End If
+
+                        Dim invAdd3 As String
+                        If String.IsNullOrEmpty(inv.INV_ADD3) Then
+                            invAdd3 = ""
+                        Else
+                            invAdd3 = inv.INV_ADD3
+                        End If
+
+                        populatreDatagrid(
+                        inv.INV_NO,
+                        inv.INV_DATE.ToString(),
+                        agId, _                    ' was used twice — now consistent
+                        agId, _                    ' second occurrence
+                        invAdd3,
+                        balance.ToString("0.00", CultureInfo.InvariantCulture),
+                        "0.00",
+                        False,
+                        "0.00")
+                    End If
+
+                    If String.IsNullOrEmpty(txtRecivedBy.Text) Then
+                        txtRecivedBy.Text = inv.REP_CODE
+                    End If
+                Next
+
+                ' ── 4. Load technician name ──
+                If Not String.IsNullOrWhiteSpace(txtRecivedBy.Text) Then
+                    Dim techName = conn.QueryFirstOrDefault(Of String)(
+                        "SELECT TECH_NAME 
+                     FROM MTBL_TECH_MASTER 
+                     WHERE COM_ID = @COM_ID 
+                       AND TECH_CODE = @TECH_CODE 
+                       AND TECH_ACTIVE = 1",
+                        New With {
+                            .COM_ID = comId,
+                            .TECH_CODE = Trim(txtRecivedBy.Text)
+                        })
+
+                    lblTechName.Text = If(String.IsNullOrEmpty(techName), "ERROR", techName)
                 End If
-            Next
 
-            '--- Get VAT info
-            dbConnections.sqlCommand = New SqlCommand("usp_GetCustomerVATInfo", dbConnections.sqlConnection)
-            dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader()
+                ' ── Final steps ──
+                Load_Cus_Debtors_info()
+                Calculate_Balance()
 
-            While dbConnections.dReader.Read()
-                txtCustomerName.Text = dbConnections.dReader("CUS_NAME").ToString()
-            End While
-            dbConnections.dReader.Close()
-
-            '--- Load unpaid invoices
-            dbConnections.sqlCommand = New SqlCommand("usp_GetUnpaidInvoices", dbConnections.sqlConnection)
-            dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
-
-            da = New SqlDataAdapter(dbConnections.sqlCommand)
-            ds.Clear()
-            da.Fill(ds)
-
-            ' Prepare DataTable once
-            Dim dataTable As New DataTable()
-            With dataTable.Columns
-                .Add("INV_NO")
-                .Add("INV_DATE")
-                .Add("AG_ID")
-                .Add("AG_NAME")
-                .Add("INV_LOC")
-                .Add("INV_VAL", GetType(Double))
-                .Add("PAY_VAL", GetType(Double))
-                .Add("CHECK", GetType(Boolean))
-                .Add("BAL", GetType(Double))
-            End With
-
-            ' Fill DataTable in loop
-            For Each row As DataRow In ds.Tables(0).Rows
-                Dim invNo = row("INV_NO").ToString()
-                If Not InvList.Contains(invNo) Then
-                    InvList.Add(invNo)
-
-                    Dim invVal As Decimal = row.Field(Of Decimal)("INV_VAL")
-                    Dim isNBT As Boolean = row.Field(Of Boolean)("IS_NBT")
-                    Dim isVAT As Boolean = row.Field(Of Boolean)("IS_VAT")
-
-                    Dim nbtValue As Double = GetNBTP(invNo)
-                    Dim vatValue As Double = GetVATP(invNo)
-
-                    If isNBT Then invVal += (invVal / 100) * nbtValue
-                    If isVAT Then invVal += (invVal / 100) * vatValue
-
-                    Dim finalVal = GetLastBalance(invNo, invVal)
-                    Dim invAdd3 = row("INV_ADD3").ToString()
-                    Dim invDate = row("INV_DATE")
-                    Dim agID = row("AG_ID").ToString()
-
-                    dataTable.Rows.Add(invNo, invDate, agID, agID, invAdd3, finalVal, 0.0, False, 0.0)
+                If hasRecord Then
+                    globalFunctions.globalButtonActivation(True, True, False, False, False, False)
+                    Me.saveBtnStatus()
                 End If
-            Next
-
-            ' Finally bind the whole DataTable to grid            
-            dgGrid.DataSource = dataTable
-
-            '--- Get technician name
-            dbConnections.sqlCommand = New SqlCommand("usp_GetTechName", dbConnections.sqlConnection)
-            dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@TECH_CODE", Trim(txtRecivedBy.Text))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader()
-
-            If dbConnections.dReader.Read() Then
-                lblTechName.Text = If(IsDBNull(dbConnections.dReader("TECH_NAME")), "ERROR", dbConnections.dReader("TECH_NAME").ToString())
-            End If
-            dbConnections.dReader.Close()
-
-            Load_Cus_Debtors_info()
-            Calculate_Balance()
-
-            If hasRecord Then
-                globalFunctions.globalButtonActivation(True, True, False, False, False, False)
-                Me.saveBtnStatus()
-            End If
+            End Using
 
         Catch ex As Exception
-            MessageBox.Show("Error code(" & Me.Tag & "X4) " + GenaralErrorMessage + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            inputErrorLog(Me.Text, "" & Me.Tag & "X4", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-        Finally
-            dbConnections.dReader.Close()
-            connectionClose()
+            MsgBox(ex.Message)
         End Try
     End Sub
+
+    'Private Sub load_Cus_info()
+    '    dgGrid.DataSource = Nothing
+    '    errorEvent = "Reading information"
+    '    Dim hasRecord As Boolean = False
+    '    'dgGrid.Rows.Clear()
+    '    connectionStaet()
+
+    '    Try
+    '        '--- Get customer name from previous history
+    '        dbConnections.sqlCommand = New SqlCommand("usp_GetCustomerNameFromPrevHistory", dbConnections.sqlConnection)
+    '        dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+    '        dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader()
+
+    '        While dbConnections.dReader.Read()
+    '            txtCustomerName.Text = dbConnections.dReader("CUS_NAME").ToString()
+    '        End While
+    '        dbConnections.dReader.Close()
+
+    '        '--- Load previous invoice history
+    '        dbConnections.sqlCommand = New SqlCommand("usp_GetPrevInvoiceDetails", dbConnections.sqlConnection)
+    '        dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+
+    '        Dim da As New SqlDataAdapter(dbConnections.sqlCommand)
+    '        Dim ds As New DataSet()
+    '        da.Fill(ds)
+
+    '        Dim InvList As New List(Of String)()
+    '        For Each row As DataRow In ds.Tables(0).Rows
+    '            If row("CUS_ID").ToString().Trim() = txtCustomerID.Text.Trim() Then
+    '                Dim invVal As Decimal = row.Field(Of Decimal)("INV_VAL")
+    '                Dim finalVal As Decimal = GetLastBalance(row("INV_NO").ToString(), invVal)
+
+    '                Dim invAdd As String = If(IsDBNull(row("CUS_ADD1")), "", row("CUS_ADD1")) &
+    '                                   If(IsDBNull(row("CUS_ADD2")), "", " " & row("CUS_ADD2"))
+
+    '                populatreDatagrid(row("INV_NO"), row("INV_DATE"), "N/A", "N/A", invAdd, finalVal.ToString("0.00"), "0.00", False, "0.00")
+
+    '                txtRecivedBy.Text = row("REP_CODE").ToString()
+    '                hasRecord = True
+    '            End If
+    '        Next
+
+    '        '--- Get VAT info
+    '        dbConnections.sqlCommand = New SqlCommand("usp_GetCustomerVATInfo", dbConnections.sqlConnection)
+    '        dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+    '        dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader()
+
+    '        While dbConnections.dReader.Read()
+    '            txtCustomerName.Text = dbConnections.dReader("CUS_NAME").ToString()
+    '        End While
+    '        dbConnections.dReader.Close()
+
+    '        '--- Load unpaid invoices
+    '        dbConnections.sqlCommand = New SqlCommand("usp_GetUnpaidInvoices", dbConnections.sqlConnection)
+    '        dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCustomerID.Text))
+
+    '        da = New SqlDataAdapter(dbConnections.sqlCommand)
+    '        ds.Clear()
+    '        da.Fill(ds)
+
+    '        ' Prepare DataTable once
+    '        Dim dataTable As New DataTable()
+    '        With dataTable.Columns
+    '            .Add("INV_NO")
+    '            .Add("INV_DATE")
+    '            .Add("AG_ID")
+    '            .Add("AG_NAME")
+    '            .Add("INV_LOC")
+    '            .Add("INV_VAL", GetType(Double))
+    '            .Add("PAY_VAL", GetType(Double))
+    '            .Add("CHECK", GetType(Boolean))
+    '            .Add("BAL", GetType(Double))
+    '        End With
+
+    '        ' Fill DataTable in loop
+    '        For Each row As DataRow In ds.Tables(0).Rows
+    '            Dim invNo = row("INV_NO").ToString()
+    '            If Not InvList.Contains(invNo) Then
+    '                InvList.Add(invNo)
+
+    '                Dim invVal As Decimal = row.Field(Of Decimal)("INV_VAL")
+    '                Dim isNBT As Boolean = row.Field(Of Boolean)("IS_NBT")
+    '                Dim isVAT As Boolean = row.Field(Of Boolean)("IS_VAT")
+
+    '                Dim nbtValue As Double = GetNBTP(invNo)
+    '                Dim vatValue As Double = GetVATP(invNo)
+
+    '                If isNBT Then invVal += (invVal / 100) * nbtValue
+    '                If isVAT Then invVal += (invVal / 100) * vatValue
+
+    '                Dim finalVal = GetLastBalance(invNo, invVal)
+    '                Dim invAdd3 = row("INV_ADD3").ToString()
+    '                Dim invDate = row("INV_DATE")
+    '                Dim agID = row("AG_ID").ToString()
+
+    '                dataTable.Rows.Add(invNo, invDate, agID, agID, invAdd3, finalVal, 0.0, False, 0.0)
+    '            End If
+    '        Next
+
+    '        ' Finally bind the whole DataTable to grid            
+    '        dgGrid.DataSource = dataTable
+
+    '        '--- Get technician name
+    '        dbConnections.sqlCommand = New SqlCommand("usp_GetTechName", dbConnections.sqlConnection)
+    '        dbConnections.sqlCommand.CommandType = CommandType.StoredProcedure
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@TECH_CODE", Trim(txtRecivedBy.Text))
+    '        dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader()
+
+    '        If dbConnections.dReader.Read() Then
+    '            lblTechName.Text = If(IsDBNull(dbConnections.dReader("TECH_NAME")), "ERROR", dbConnections.dReader("TECH_NAME").ToString())
+    '        End If
+    '        dbConnections.dReader.Close()
+
+    '        Load_Cus_Debtors_info()
+    '        Calculate_Balance()
+
+    '        If hasRecord Then
+    '            globalFunctions.globalButtonActivation(True, True, False, False, False, False)
+    '            Me.saveBtnStatus()
+    '        End If
+
+    '    Catch ex As Exception
+    '        MessageBox.Show("Error code(" & Me.Tag & "X4) " + GenaralErrorMessage + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+    '        inputErrorLog(Me.Text, "" & Me.Tag & "X4", errorEvent, userSession, userName, DateTime.Now, ex.Message)
+    '    Finally
+    '        dbConnections.dReader.Close()
+    '        connectionClose()
+    '    End Try
+    'End Sub
 
     '/This function is used to get the customer information by using the web api link 
 
@@ -1889,21 +2286,62 @@ Public Class frmReciptMaster
 
     Private Async Sub FindBy_Inv_No()
         Try
-            Dim invoiceNo As String = txtFindIncoice.Text.Trim()
-            Dim companyID As String = globalVariables.selectedCompanyID
-            Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/receipts/findbyinvoiceno?companyID={companyID}&invoiceNo={invoiceNo}"
-            Using client As New HttpClient()
-                Dim response As HttpResponseMessage = Await client.GetAsync(apiUrl)
-                If response.IsSuccessStatusCode Then
-                    Dim rawJson As String = Await response.Content.ReadAsStringAsync()
-                    Dim customerId As String = JsonConvert.DeserializeObject(Of String)(rawJson)
-                    txtCustomerID.Text = customerId
+            '//get invoice no 
+            Dim invNo As String = Trim(txtFindIncoice.Text)
+            If String.IsNullOrWhiteSpace(invNo) Then Return
+            Dim comId As String = globalVariables.selectedCompanyID
+            Dim cusId As String = Nothing
+            Using connection As New SqlConnection(connectionString)
+                Await connection.OpenAsync()
+                cusId = connection.QueryFirstOrDefault(Of String)(
+                "SELECT CUS_ID 
+                 FROM TBL_PREV_INV_HISTORY 
+                 WHERE COM_ID = @COM_ID 
+                   AND INV_NO = @INV_NO",
+                New With {
+                    .COM_ID = comId,
+                    .INV_NO = invNo
+                })
+                If cusId Is Nothing Then
+                    cusId = connection.QueryFirstOrDefault(Of String)("
+                    SELECT CUS_ID 
+                    FROM TBL_INVOICE_MASTER
+                    WHERE COM_ID = @COM_ID 
+                    AND INV_NO = @INV_NO",
+                    New With {
+                    .COM_ID = comId,
+                    .INV_NO = invNo
+                    })
                 End If
             End Using
+
+            If cusId IsNot Nothing Then
+                txtCustomerID.Text = cusId.ToString()
+            Else
+                txtCustomerID.Text = ""
+            End If
         Catch ex As Exception
-            MessageBox.Show(ex.Message)
+            MsgBox(ex.Message)
         End Try
     End Sub
+
+    'Private Async Sub FindBy_Inv_No()
+    '    Try
+    '        Dim invoiceNo As String = txtFindIncoice.Text.Trim()
+    '        Dim companyID As String = globalVariables.selectedCompanyID
+    '        Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/receipts/findbyinvoiceno?companyID={companyID}&invoiceNo={invoiceNo}"
+    '        Using client As New HttpClient()
+    '            Dim response As HttpResponseMessage = Await client.GetAsync(apiUrl)
+    '            If response.IsSuccessStatusCode Then
+    '                Dim rawJson As String = Await response.Content.ReadAsStringAsync()
+    '                Dim customerId As String = JsonConvert.DeserializeObject(Of String)(rawJson)
+    '                txtCustomerID.Text = customerId
+    '            End If
+    '        End Using
+    '    Catch ex As Exception
+    '        MessageBox.Show(ex.Message)
+    '    End Try
+    'End Sub
 
     'Private Sub FindBy_Inv_No()
     '    Try
@@ -1951,6 +2389,41 @@ Public Class frmReciptMaster
     Private Sub txtBankID_TextChanged(sender As Object, e As EventArgs) Handles txtBankID.TextChanged
 
     End Sub
+End Class
+
+Public Class CustomerInfo
+    Public Property CUS_NAME As String
+    Public Property IS_NBT As Boolean
+    Public Property IS_VAT As Boolean
+End Class
+
+Public Class PrevInvoiceRow
+    Public Property INV_DATE As Date
+    Public Property INV_NO As String
+    Public Property REP_CODE As String
+    Public Property REP_NAME As String
+    Public Property DEPT As String
+    Public Property CUS_ID As String
+    Public Property CUS_NAME As String
+    Public Property INV_VAL As Decimal
+    Public Property CUS_ADD1 As String
+    Public Property CUS_ADD2 As String
+End Class
+
+Public Class CurrentInvoiceRow
+    Public Property AG_ID As String
+    Public Property INV_PERIOD_START As Date?
+    Public Property INV_PERIOD_END As Date?
+    Public Property INV_NO As String
+    Public Property INV_DATE As Date
+    Public Property IS_NBT As Boolean
+    Public Property IS_VAT As Boolean
+    Public Property RENTAL_VAL As Decimal?
+    Public Property INV_VAL As Decimal
+    Public Property INV_ADD3 As String
+    Public Property REP_CODE As String
+    Public Property CUS_ID As String
+    Public Property COM_ID As String
 End Class
 
 Public Class CustomerDebtorsInfo
@@ -2015,6 +2488,43 @@ Public Class TBL_RECEIPT_MASTER
         ReceiptDetails = New List(Of ReceiptDetails)()
     End Sub
     'Public Property ReciptDetails As List(Of ReceiptDetails)
+End Class
+
+' ─── Data transfer objects (add inside the Form class or a separate file) ───
+Public Class ReceiptSnapshot
+    Public Property CompanyID As String
+    Public Property ReceiptID As String
+    Public Property CustomerID As String
+    Public Property CustomerName As String
+    Public Property PayType As String
+    Public Property PayMethod As String
+    Public Property ChequeNo As String       ' Nothing = DB NULL
+    Public Property BankID As String
+    Public Property BankName As String
+    Public Property ReceivedBy As String
+    Public Property ReceivedByName As String
+    Public Property PaymentAmount As Double
+    Public Property AdvPayment As Double
+    Public Property PayByAdvAmount As Integer
+    Public Property BFPayment As Double
+    Public Property AmountInWords As String
+    Public Property Remarks As String        ' Nothing = DB NULL
+    Public Property ReceiptTotal As Double
+    Public Property InvoiceList As String
+    Public Property Outstanding As Double
+    Public Property BalanceTotal As Double
+    Public Property UserSession As String
+End Class
+
+Public Class ReceiptLineItem
+    Public Property AgID As Object
+    Public Property AgName As Object
+    Public Property InvNo As String
+    Public Property InvDate As Date
+    Public Property CusLoc As String
+    Public Property InvAmount As Double
+    Public Property PaymentAmount As Double
+    Public Property Balance As Double
 End Class
 
 Public Class ReceiptMasterVM

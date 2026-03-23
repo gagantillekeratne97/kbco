@@ -4,7 +4,12 @@ Imports CrystalDecisions.ReportSource
 Imports CrystalDecisions.Shared
 Imports CrystalDecisions.Windows.Forms
 Imports System.Net
+Imports Dapper
 Imports System.IO
+Imports System.Configuration
+Imports System.Runtime.InteropServices.ComTypes
+Imports System.Windows.Interop
+Imports System.Runtime.Remoting.Messaging
 
 Public Class frmInternalRequest
 
@@ -22,6 +27,9 @@ Public Class frmInternalRequest
     Private _lastFormSize As Integer
     Private SavedIR_NO As String
     Private IsNegative_Internal As String = "P"
+
+    '//Get the connectionString
+    Dim connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
     '//Active form perform btn click case
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
@@ -50,142 +58,173 @@ Public Class frmInternalRequest
     End Sub
 
     Private Function save() As Boolean
-        save = False
-        Dim srilankaTimeZone As TimeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Sri Lanka Standard Time")
-        Dim utcNow As DateTime = DateTime.UtcNow
-        Dim sriLankaTime As DateTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, srilankaTimeZone)
-        Dim DebtorsOutHave As Boolean = False
-        Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
-        If conf = vbYes Then
-            If isDataValid() = False Then
-                Exit Function
-            End If
-            Try
-
-                'If IsDebtorsOutstandingHave(globalVariables.DebtorsCheckDayLimit, False) Then
-                '    DebtorsOutHave = True
-                'End If
-                If lblDebtors.Text = "YES" Then
-                    DebtorsOutHave = True
-                Else
-                    DebtorsOutHave = False
-                End If
-
-                SavedIR_NO = GenarateIRNo()
-
-                connectionStaet()
-                dbConnections.sqlTransaction = dbConnections.sqlConnection.BeginTransaction
-                errorEvent = "Save"
-                strSQL = "INSERT INTO TBL_INTERNAL_MAIN  ( COM_ID, IR_NO, IR_DATE, SERIAL_NO, PN_NO, CUS_CODE, CUS_LOC, ISSUED_TO, CURRENT_MR, IR_TYPE, IR_STATE, CR_BY, CR_DATE,IR_PRINTED,COMMENT) VALUES     (@COM_ID, @IR_NO, @IR_DATE, @SERIAL_NO, @PN_NO, @CUS_CODE, @CUS_LOC, @ISSUED_TO, @CURRENT_MR, @IR_TYPE, @IR_STATE, '" & userSession & "', GETDATE(),@IR_PRINTED,@COMMENT)"
-
-                'Changes made to IR_DATE on 2025-07-02
-                'Changes made IR_DATE TO sriLankaTime function 
-                'Changes made by Gagan Tillekeratne.
-
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_DATE", sriLankaTime.ToString("yyyy-MM-dd HH:mm:ss"))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL_NO", Trim(txtSerial.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@PN_NO", Trim(txtPNo.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_CODE", Trim(txtCusCode.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_LOC", Trim(txtCusAdd.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@ISSUED_TO", Trim(txtTechCode.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_MR", Trim(txtCurrentMR.Text))
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_TYPE", Trim(cmbIRType.Text))
-
-                If DebtorsOutHave = True Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "PENDING APPROVAL")
-                Else
-                    If IsNegative_Internal = "P" Then
-                        If globalVariables.selectedCompanyID = "003" Then
-                            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "PENDING GM APPROVAL")
-                        Else
-                            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "PENDING APPROVAL")
-                        End If
-                    ElseIf IsNegative_Internal = "N" Then
-                        If globalVariables.selectedCompanyID = "003" Then
-                            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "PENDING GM APPROVAL")
-                        Else
-                            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "PENDING APPROVAL")
-                        End If
-                    Else
-                        Exit Function
-                    End If
-                End If
-                'COMMENT
-                If Trim(txtComment.Text) = "" Then
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@COMMENT", DBNull.Value)
-                Else
-                    dbConnections.sqlCommand.Parameters.AddWithValue("@COMMENT", Trim(txtComment.Text))
-                End If
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", SavedIR_NO)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@IR_PRINTED", False)
-                If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
-
-                For Each row As DataGridViewRow In dgInternal.Rows
-
-                    If Trim(dgInternal.Rows(row.Index).Cells("PN_DESC").Value) <> "" Then
-                        dbConnections.sqlCommand.Parameters.Clear()
-
-                        strSQL = "INSERT INTO TBL_INTERNAL_ITEMS  (COM_ID, IR_NO, IR_DATE, SERIAL_NO, PN, PN_DESC, PN_QTY, PN_TYPE, PN_VALUE, MR_TO_DATE, PREVIOUS_READING, CURRENT_READING, COPIES, STD_YIELD) VALUES     (@COM_ID, @IR_NO, @IR_DATE, @SERIAL_NO, @PN, @PN_DESC, @PN_QTY, @PN_TYPE, @PN_VALUE, @MR_TO_DATE, @PREVIOUS_READING, @CURRENT_READING, @COPIES, @STD_YIELD)"
-                        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(globalVariables.selectedCompanyID))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", SavedIR_NO)
-
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL_NO", Trim(txtSerial.Text))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@IR_DATE", Convert.ToDateTime(sriLankaTime.ToString("yyyy-MM-dd")))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@PN", Trim(dgInternal.Rows(row.Index).Cells("IR_PN").Value))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@PN_DESC", Trim(dgInternal.Rows(row.Index).Cells("PN_DESC").Value))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@PN_QTY", Trim(dgInternal.Rows(row.Index).Cells("IR_QTY").Value))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@PN_TYPE", Trim(dgInternal.Rows(row.Index).Cells("TYPE").Value))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@PN_VALUE", CDbl(dgInternal.Rows(row.Index).Cells("IR_VAL").Value))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@MR_TO_DATE", CInt(txtCurrentMR.Text))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@PREVIOUS_READING", dgInternal.Rows(row.Index).Cells("IR_P_READING").Value)
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@CURRENT_READING", (Trim(txtCurrentMR.Text)))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@COPIES", CInt(dgInternal.Rows(row.Index).Cells("IR_COPIES").Value))
-                        dbConnections.sqlCommand.Parameters.AddWithValue("@STD_YIELD", CInt(dgInternal.Rows(row.Index).Cells("IR_YIELD").Value))
-
-
-                        If dbConnections.sqlCommand.ExecuteNonQuery() Then save = True Else save = False
-
-                    End If
-                Next
-                dbConnections.sqlTransaction.Commit()
-
-
-                txtIRNo.Text = SavedIR_NO
-                txtViewInternalNo.Text = SavedIR_NO
-                '' If IsNegative_Internal = "P" Then
-                'frmPrintInternal.Text = Trim(txtIRNo.Text)
-                'frmPrintInternal.Show()
-                '' End If
-
-
-                If save = True Then
-
-                    AuditDelete(Me.Text, userSession, userName, txtIRNo.Text, txtCusName.Text + "(Saved)")
-
-                End If
-            Catch ex As SqlException
-                dbConnections.sqlTransaction.Rollback()
-                inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-                MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
-
-            Catch ex As Exception
-                dbConnections.sqlTransaction.Rollback()
-                inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-                MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X1) " + GenaralErrorMessage + ex.Message, "", MessageBoxButtons.OK, MessageBoxIcon.Error)
-
-            Finally
-                dbConnections.dReader.Close()
-                connectionClose()
-
-            End Try
+        Dim success As Boolean = False
+        If MessageBox.Show(SaveMessage, "Confirm Save", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1) <> vbYes Then
+            Exit Function
         End If
-        Return save
-    End Function
 
+        If isDataValid() = False Then
+            Exit Function
+        End If
+
+        Dim sriLankanTimeZone As TimeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Sri Lanka Standard Time")
+        Dim utcNow As DateTime = DateTime.UtcNow
+        Dim sriLankaNow As DateTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, sriLankanTimeZone)
+        Dim sriLankaDate As DateTime = sriLankaNow.Date
+
+        Dim hasDebtorsIssue As Boolean = (lblDebtors.Text = "YES")
+        Dim irNo As String = GenerateIRNo()
+
+        If String.IsNullOrEmpty(irNo) Then
+            MessageBox.Show("Failed to generate IR number.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            Exit Function
+        End If
+
+        Dim connection As SqlConnection = Nothing
+        Dim transaction As SqlTransaction = Nothing
+        Try
+            connection = New SqlConnection(connectionString)
+            connection.Open()
+            transaction = connection.BeginTransaction()
+            Dim mainSql As String = "INSERT INTO TBL_INTERNAL_MAIN " &
+            "(COM_ID, IR_NO, IR_DATE, SERIAL_NO, PN_NO, CUS_CODE, CUS_LOC, " &
+            " ISSUED_TO, CURRENT_MR, IR_TYPE, IR_STATE, CR_BY, CR_DATE, IR_PRINTED, COMMENT) " &
+            "VALUES " &
+            "(@COM_ID, @IR_NO, @IR_DATE, @SERIAL_NO, @PN_NO, @CUS_CODE, @CUS_LOC, " &
+            " @ISSUED_TO, @CURRENT_MR, @IR_TYPE, @IR_STATE, @CR_BY, GETDATE(), @IR_PRINTED, @COMMENT)"
+
+            Dim irState As String = ""
+            If hasDebtorsIssue Then
+                irState = "PENDING APPROVAL"
+            Else
+                If IsNegative_Internal = "P" OrElse IsNegative_Internal = "N" Then
+                    If globalVariables.selectedCompanyID = "003" Then
+                        irState = "PENDING GM APPROVAL"
+                    Else
+                        irState = "PENDING APPROVAL"
+                    End If
+                Else
+                    Throw New Exception("Invalid negative internal flag")
+                End If
+            End If
+            Dim commentValue As Object = DBNull.Value
+            If Trim(txtComment.Text) <> "" Then
+                commentValue = Trim(txtComment.Text)
+            End If
+            Dim mainParams = New With {
+            .COM_ID = globalVariables.selectedCompanyID,
+            .IR_NO = irNo,
+            .IR_DATE = sriLankaNow,
+            .SERIAL_NO = Trim(txtSerial.Text),
+            .PN_NO = Trim(txtPNo.Text),
+            .CUS_CODE = Trim(txtCusCode.Text),
+            .CUS_LOC = Trim(txtCusAdd.Text),
+            .ISSUED_TO = Trim(txtTechCode.Text),
+            .CURRENT_MR = Trim(txtCurrentMR.Text),
+            .IR_TYPE = Trim(cmbIRType.Text),
+            .IR_STATE = irState,
+            .CR_BY = userSession,
+            .IR_PRINTED = False,
+            .COMMENT = commentValue
+            }
+            Dim rows As Integer = connection.Execute(mainSql, mainParams, transaction)
+            If rows <> 1 Then
+                Throw New Exception("Failed to insert main internal record")
+            End If
+            Dim itemSql As String =
+            "INSERT INTO TBL_INTERNAL_ITEMS " &
+            "(COM_ID, IR_NO, IR_DATE, SERIAL_NO, PN, PN_DESC, PN_QTY, PN_TYPE, " &
+            " PN_VALUE, MR_TO_DATE, PREVIOUS_READING, CURRENT_READING, COPIES, STD_YIELD) " &
+            "VALUES " &
+            "(@COM_ID, @IR_NO, @IR_DATE, @SERIAL_NO, @PN, @PN_DESC, @PN_QTY, @PN_TYPE, " &
+            " @PN_VALUE, @MR_TO_DATE, @PREVIOUS_READING, @CURRENT_READING, @COPIES, @STD_YIELD)"
+            Dim currentMR As Integer = 0
+            Integer.TryParse(Trim(txtCurrentMR.Text), currentMR)
+
+            Dim row As DataGridViewRow
+            For Each row In dgInternal.Rows
+                Dim pnDesc As String = ""
+                If row.Cells("PN_DESC").Value IsNot Nothing Then
+                    pnDesc = Trim(row.Cells("PN_DESC").Value.ToString())
+                End If
+
+                If pnDesc = "" Then Continue For
+
+                Dim pn As String = ""
+                If row.Cells("IR_PN").Value IsNot Nothing Then pn = Trim(row.Cells("IR_PN").Value.ToString())
+
+                Dim pnQty As String = ""
+                If row.Cells("IR_QTY").Value IsNot Nothing Then pnQty = Trim(row.Cells("IR_QTY").Value.ToString())
+
+                Dim pnType As String = ""
+                If row.Cells("TYPE").Value IsNot Nothing Then pnType = Trim(row.Cells("TYPE").Value.ToString())
+
+                Dim pnValue As Decimal = 0
+                If row.Cells("IR_VAL").Value IsNot Nothing Then
+                    Decimal.TryParse(row.Cells("IR_VAL").Value.ToString(), pnValue)
+                End If
+
+                Dim prevReading As Integer = 0
+                If row.Cells("IR_P_READING").Value IsNot Nothing Then
+                    Integer.TryParse(row.Cells("IR_P_READING").Value.ToString(), prevReading)
+                End If
+
+                Dim copies As Integer = 0
+                If row.Cells("IR_COPIES").Value IsNot Nothing Then
+                    Integer.TryParse(row.Cells("IR_COPIES").Value.ToString(), copies)
+                End If
+
+                Dim stdYield As Integer = 0
+                If row.Cells("IR_YIELD").Value IsNot Nothing Then
+                    Integer.TryParse(row.Cells("IR_YIELD").Value.ToString(), stdYield)
+                End If
+
+                Dim itemParams = New With {
+                    .COM_ID = globalVariables.selectedCompanyID,
+                    .IR_NO = irNo,
+                    .IR_DATE = sriLankaDate,
+                    .SERIAL_NO = Trim(txtSerial.Text),
+                    .PN = pn,
+                    .PN_DESC = pnDesc,
+                    .PN_QTY = pnQty,
+                    .PN_TYPE = pnType,
+                    .PN_VALUE = pnValue,
+                    .MR_TO_DATE = currentMR,
+                    .PREVIOUS_READING = prevReading,
+                    .CURRENT_READING = currentMR,
+                    .COPIES = copies,
+                    .STD_YIELD = stdYield
+                }
+
+                rows = connection.Execute(itemSql, itemParams, transaction)
+                If rows <> 1 Then
+                    Throw New Exception("Failed to insert item line for PN: " & pn)
+                End If
+            Next
+            transaction.Commit()
+            success = True
+
+            txtIRNo.Text = irNo
+            txtViewInternalNo.Text = irNo
+        Catch ex As Exception
+            If transaction IsNot Nothing Then
+                transaction.Rollback()
+            End If
+            MessageBox.Show(ex.Message,
+                        "Save Failed", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            success = False
+        Finally
+            If transaction IsNot Nothing Then Dispose()
+            If connection IsNot Nothing Then
+                If connection.State <> ConnectionState.Closed Then
+                    connection.Close()
+                End If
+                connection.Dispose()
+            End If
+        End Try
+
+        Return success
+    End Function
 
     Private Function delete() As Boolean
         errorEvent = "Delete"
@@ -282,83 +321,76 @@ Public Class frmInternalRequest
 
     Private Sub GetLastIRInfo()
         Try
-            Dim isRecordHave As Boolean = False
-            strSQL = "SELECT   TOP 1  IR_NO, IR_DATE FROM TBL_INTERNAL_MAIN WHERE     (COM_ID = '" & Trim(globalVariables.selectedCompanyID) & "') ORDER BY IR_DATE DESC"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+            Dim sql As String = "
+            SELECT TOP 1 IR_NO, IR_DATE
+            FROM TBL_INTERNAL_MAIN 
+            WHERE COM_ID = @companyid
+            ORDER BY IR_DATE DESC"
 
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                Dim result = connection.QueryFirstOrDefault(Of IRInfo)(
+                sql, New With {.CompanyID = globalVariables.selectedCompanyID.Trim()})
 
-            While dbConnections.dReader.Read
-                isRecordHave = True
-                If IsDBNull(dbConnections.dReader.Item("IR_NO")) Then
-                    lblIRNo.Text = ""
+                If result IsNot Nothing Then
+                    lblIRNo.Text = If(result.IR_NO, String.Empty)
+                    lblLInvDate.Text = If(result.IR_DATE?.ToString(), String.Empty)
                 Else
-                    lblIRNo.Text = dbConnections.dReader.Item("IR_NO")
+                    lblIRNo.Text = String.Empty
+                    lblLInvDate.Text = String.Empty
                 End If
-
-                If IsDBNull(dbConnections.dReader.Item("IR_DATE")) Then
-                    lblLInvDate.Text = ""
-                Else
-                    lblLInvDate.Text = dbConnections.dReader.Item("IR_DATE")
-                End If
-
-
-            End While
-
-            If isRecordHave = False Then
-                lblIRNo.Text = ""
-
-                lblLInvDate.Text = ""
-            End If
-            dbConnections.dReader.Close()
+            End Using
         Catch ex As Exception
-            dbConnections.dReader.Close()
             MsgBox(ex.Message)
         End Try
     End Sub
 
     Private Function IsPrint_Enable() As Boolean
+        Const SQL As String = "
+        SELECT CASE 
+            WHEN EXISTS (
+                SELECT 1 
+                FROM TBL_INTERNAL_MAIN
+                WHERE IR_NO = @IR_NO
+                  AND COM_ID = @COM_ID
+                  AND IR_STATE IN (
+                      'UPLOADED TO BELEETA',
+                      'PENDING DISPATCH',
+                      'INTERNAL CANCELLED',
+                      'INTERNAL PRINT PENDING',
+                      'APPROVED'
+                  )
+            ) THEN CAST(1 AS BIT)
+            ELSE CAST(0 AS BIT)
+        END"
 
-        'Changes made to the SQL Query on 2025-07-01
-        'Change made adding IR_STATE = 'UPLOADED TO BELEETA'
-        'Change made by Gagan Tillekeratne.
-
-        IsPrint_Enable = False
         Try
-            strSQL = "SELECT CASE
-                WHEN EXISTS (
-                    SELECT IR_NO 
-                    FROM TBL_INTERNAL_MAIN 
-                    WHERE 
-                        (IR_STATE = 'UPLOADED TO BELEETA' OR 
-                         IR_STATE = 'PENDING DISPATCH' OR 
-                         IR_STATE = 'INTERNAL CANCELLED' OR 
-			             IR_STATE = 'INTERNAL PRINT PENDING' OR
-			             IR_STATE = 'APPROVED') 
-                        AND IR_NO = @IR_NO
-                        AND COM_ID = @COM_ID
-                ) 
-                THEN CAST(1 AS BIT) 
-                ELSE CAST(0 AS BIT) 
-            END
-            "
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", Trim(txtViewInternalNo.Text))
-            If dbConnections.sqlCommand.ExecuteScalar Then
-                IsPrint_Enable = True
+            Using conn As New SqlConnection(connectionString)
+                conn.Open()
 
-            Else
-                IsPrint_Enable = False
-                MessageBox.Show("This Internal is in pending approval stage.", "Pending Approval.", MessageBoxButtons.OK)
-            End If
+                Dim result = conn.ExecuteScalar(Of Boolean)(
+                SQL,
+                New With {
+                    .IR_NO = txtIRNo.Text?.Trim(),
+                    .COM_ID = globalVariables.selectedCompanyID
+                }
+            )
+
+                Return result
+            End Using
 
         Catch ex As Exception
-            MsgBox(ex.Message)
-        End Try
-        Return IsPrint_Enable
-    End Function
+            ' Consider proper logging instead of MsgBox in production
+            MessageBox.Show(
+            "Error checking print permission:" & vbCrLf & vbCrLf & ex.Message,
+            "Database Error",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Error
+        )
 
+            Return False
+        End Try
+    End Function
 
     Private Sub IsNegative()
         IsNegative_Internal = "P"
@@ -459,52 +491,59 @@ Public Class frmInternalRequest
     Private Function UpdateIRPrint() As Boolean
         UpdateIRPrint = False
         Try
-            connectionStaet()
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                Dim updateQuery As String = "
+                UPDATE TBL_INTERNAL_MAIN SET IR_STATE = @irstate,
+                IR_PRINTED = @irprinted
+                WHERE COM_ID = @companyid AND IR_NO = @irno"
 
-            errorEvent = "Save"
-            strSQL = "UPDATE    TBL_INTERNAL_MAIN  SET              IR_STATE =@IR_STATE, IR_PRINTED =@IR_PRINTED WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (IR_NO = @IR_NO)"
+                Dim companyId As String = globalVariables.selectedCompanyID.Trim()
 
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_STATE", "PENDING DISPATCH")
-            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", Trim(txtIRNo.Text))
-            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_PRINTED", True)
-            If dbConnections.sqlCommand.ExecuteNonQuery() Then UpdateIRPrint = True Else UpdateIRPrint = False
+                Dim result = connection.Execute(updateQuery, New With {
+                    .companyid = companyId,
+                    .irno = txtIRNo.Text.Trim(),
+                    .irprinted = True})
 
-            If UpdateIRPrint = True Then
-                MessageBox.Show("Internal Print Successful.", "Printed.", MessageBoxButtons.OK, MessageBoxIcon.Information)
-            End If
+                If result > 0 Then
+                    MessageBox.Show("Internal Print Successful.", "Printed.", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                End If
+            End Using
         Catch ex As Exception
             MsgBox(ex.Message)
         End Try
-        Return UpdateIRPrint
     End Function
 
     Private Sub Load_IR_Info_View()
-        If Trim(txtViewInternalNo.Text) = "" Then
-            Exit Sub
-        End If
+        If Trim(txtViewInternalNo.Text) = "" Then Exit Sub
+
         Try
-            strSQL = "SELECT     TBL_INTERNAL_MAIN.COM_ID, TBL_INTERNAL_MAIN.IR_NO, TBL_INTERNAL_MAIN.CUS_CODE, MTBL_CUSTOMER_MASTER.CUS_NAME FROM         TBL_INTERNAL_MAIN INNER JOIN  MTBL_CUSTOMER_MASTER ON TBL_INTERNAL_MAIN.COM_ID = MTBL_CUSTOMER_MASTER.COM_ID AND TBL_INTERNAL_MAIN.CUS_CODE = MTBL_CUSTOMER_MASTER.CUS_ID WHERE     (TBL_INTERNAL_MAIN.IR_NO = @IR_NO) AND (TBL_INTERNAL_MAIN.COM_ID = @COM_ID)"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@IR_NO", Trim(txtViewInternalNo.Text))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                Dim result = connection.QueryFirstOrDefault(
+                "SELECT m.CUS_CODE, c.CUS_NAME
+                 FROM TBL_INTERNAL_MAIN m
+                 INNER JOIN MTBL_CUSTOMER_MASTER c
+                    ON m.COM_ID = c.COM_ID AND m.CUS_CODE = c.CUS_ID
+                 WHERE m.IR_NO = @IRNo
+                   AND m.COM_ID = @CompanyID",
+                New With {
+                    .IRNo = txtViewInternalNo.Text.Trim(),
+                    .CompanyID = globalVariables.selectedCompanyID
+                })
 
-
-            While dbConnections.dReader.Read
-                '// GET PART NAME
-                txtVICusCode.Text = dbConnections.dReader.Item("CUS_CODE")
-                txtVICusName.Text = dbConnections.dReader.Item("CUS_NAME")
-            End While
-            dbConnections.dReader.Close()
+                If result IsNot Nothing Then
+                    txtVICusCode.Text = If(result.CUS_CODE Is Nothing, String.Empty, result.CUS_CODE.ToString())
+                    txtVICusName.Text = If(result.CUS_NAME Is Nothing, String.Empty, result.CUS_NAME.ToString())
+                Else
+                    txtVICusCode.Text = String.Empty
+                    txtVICusName.Text = String.Empty
+                End If
+            End Using
         Catch ex As Exception
-            dbConnections.dReader.Close()
             MsgBox(ex.Message)
-        Finally
-
         End Try
     End Sub
-
 
     Private Sub Loading_Printer_List()
         Try
@@ -544,302 +583,197 @@ Public Class frmInternalRequest
         If frmMDImain.tsbtnPrint.Enabled Then btnStatus(4) = True Else btnStatus(4) = False
     End Sub
 
-
-    '// search by  = bySN,ByPN/ByAG
-    Private Function Search(ByRef SearchBy As String) As Boolean
-        Search = False
-
-        If Trim(txtSearch.Text) = "" Then
-            Exit Function
-        End If
-        Dim SelectedSN As String = ""
-        Dim SelectedPNo As String = ""
-        Dim SelectedAg As String = ""
-        Dim SelCusCode As String = ""
-        Dim SelectedPartNo As String = ""
+    Private Function Search(ByVal searchBy As String) As Boolean
+        If String.IsNullOrWhiteSpace(txtSearch.Text) Then Return False
 
         Try
+            Dim companyID As String = globalVariables.selectedCompanyID.Trim()
+            Dim searchTerm As String = txtSearch.Text.Trim()
+            Dim whereClause As String = If(searchBy = "SN", "SERIAL = @SearchTerm", "P_NO = @SearchTerm")
+            'Dim whereClause As String = "SERIAL = @SearchTerm"
+            Dim connection As New SqlConnection(connectionString)
+            connection.Open()
 
+            Dim searchForMachineQuery As String =
+            $"SELECT AG_ID, SERIAL, P_NO, CUS_ID 
+                            From TBL_MACHINE_TRANSACTIONS
+                            Where COM_ID = @companyid And {whereClause}"
 
-            If SearchBy = "SN" Then
-                strSQL = "SELECT     AG_ID, SERIAL, P_NO,CUS_ID FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND  (SERIAL = '" & Trim(txtSearch.Text) & "')"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+            Dim transaction = connection.QueryFirstOrDefault(
+            searchForMachineQuery, New With {
+                .companyid = companyID,
+                .SearchTerm = searchTerm
+                })
 
-                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-                While dbConnections.dReader.Read
-                    Search = True
-                    SelectedSN = dbConnections.dReader.Item("SERIAL")
-                    If IsDBNull(dbConnections.dReader.Item("P_NO")) Then
-                        SelectedPNo = ""
-                    Else
-                        SelectedPNo = dbConnections.dReader.Item("P_NO")
-                    End If
-
-                    SelectedAg = dbConnections.dReader.Item("AG_ID")
-                    SelCusCode = dbConnections.dReader.Item("CUS_ID")
-
-                End While
-                dbConnections.dReader.Close()
-            Else
-                strSQL = "SELECT     AG_ID, SERIAL, P_NO,CUS_ID FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND  (P_NO = '" & Trim(txtSearch.Text) & "')"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-
-                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-                While dbConnections.dReader.Read
-                    SelectedSN = dbConnections.dReader.Item("SERIAL")
-                    If IsDBNull(dbConnections.dReader.Item("P_NO")) Then
-                        SelectedPNo = ""
-                    Else
-                        SelectedPNo = dbConnections.dReader.Item("P_NO")
-                    End If
-                    SelectedAg = dbConnections.dReader.Item("AG_ID")
-                    SelCusCode = dbConnections.dReader.Item("CUS_ID")
-
-                End While
-                dbConnections.dReader.Close()
+            If transaction Is Nothing OrElse String.IsNullOrEmpty(transaction.SERIAL) Then
+                Return False
             End If
 
+            Dim selectedSN As String = transaction.SERIAL
+            Dim selectedAg As String = transaction.AG_ID
+            Dim selCusCode As String = transaction.CUS_ID
 
+            Dim isBlocked = connection.QueryFirstOrDefault(
+            "Select CUS_ID From TBL_BLOCK_CUSTOMER
+             Where COM_ID = @CompanyID And CUS_ID = @CusID",
+            New With {.CompanyID = companyID, .CusID = selCusCode})
 
-            If SelectedSN = "" Then
-                Exit Function
-            End If
-
-
-            txtCusCode.Text = SelCusCode
-
-
-            dbConnections.sqlCommand.Parameters.Clear()
-
-            strSQL = "SELECT     CUS_NAME FROM      MTBL_CUSTOMER_MASTER WHERE     (COM_ID = @COM_ID) AND (CUS_ID = @CUS_ID)"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", SelCusCode)
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-            While dbConnections.dReader.Read
-                txtCusName.Text = dbConnections.dReader.Item("CUS_NAME")
-
-            End While
-            dbConnections.dReader.Close()
-
-
-            dbConnections.sqlCommand.Parameters.Clear()
-
-
-            '// loading machine Info
-
-            strSQL = "SELECT      MACHINE_PN,SERIAL, P_NO, IS_SPECIAL_CASE, SPECIAL_CASE_DESC, M_LOC1, M_LOC2, M_LOC3, M_DEPT, CONTACT_PERSON, CONTACT_NO, INSTALLATION_DATE, START_MR, BOOK_VALUE, TECH_CODE, REP_CODE,M_DEPT FROM         TBL_MACHINE_TRANSACTIONS WHERE     (COM_ID =@COM_ID) AND (AG_ID =@AG_ID) AND (SERIAL =@SERIAL)"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", SelectedAg)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@SERIAL", SelectedSN)
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-            While dbConnections.dReader.Read
-
-                txtSerial.Text = dbConnections.dReader.Item("SERIAL")
-                SelectedPartNo = dbConnections.dReader.Item("MACHINE_PN")
-
-                If IsDBNull(dbConnections.dReader.Item("P_NO")) Then
-                    txtPNo.Text = ""
-                Else
-                    txtPNo.Text = dbConnections.dReader.Item("P_NO")
-                End If
-                If globalVariables.selectedCompanyID = "003" Then
-                    Dim Location As String = dbConnections.dReader.Item("M_LOC1")
-
-                    If Not IsDBNull(dbConnections.dReader.Item("M_LOC2")) Then
-                        Location = Location + " " + dbConnections.dReader.Item("M_LOC2")
-                    End If
-
-                    If Not IsDBNull(dbConnections.dReader.Item("M_LOC3")) Then
-                        Location = Location + " " + dbConnections.dReader.Item("M_LOC3")
-                    End If
-                    txtCusAdd.Text = Location
-                Else
-                    txtCusAdd.Text = dbConnections.dReader.Item("M_DEPT")
-                End If
-
-
-                If IsDBNull(dbConnections.dReader.Item("TECH_CODE")) Then
-                    txtTechCode.Text = ""
-                Else
-                    txtTechCode.Text = dbConnections.dReader.Item("TECH_CODE")
-                End If
-
-                If IsDBNull(dbConnections.dReader.Item("SPECIAL_CASE_DESC")) Then
-                    txtSpecialCase.Text = ""
-                Else
-                    txtSpecialCase.Text = dbConnections.dReader.Item("SPECIAL_CASE_DESC")
-                End If
-
-            End While
-            dbConnections.dReader.Close()
-
-
-            strSQL = "SELECT   top 1  MACHINE_MODEL FROM         MTBL_MACHINE_MASTER WHERE     (COM_ID = @COM_ID) AND (MACHINE_ID =@MACHINE_ID)"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@MACHINE_ID", Trim(SelectedPartNo))
-            If IsDBNull(dbConnections.sqlCommand.ExecuteScalar) Then
-                lblModel.Text = ""
-            Else
-                lblModel.Text = dbConnections.sqlCommand.ExecuteScalar
-            End If
-
-
-
-
-            '// load Tech Name
-            If Trim(txtTechCode.Text) <> "" Then
-                strSQL = "SELECT     TECH_NAME FROM         MTBL_TECH_MASTER WHERE     (COM_ID = @COM_ID) AND (TECH_CODE = @TECH_CODE)"
-                dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-                dbConnections.sqlCommand.Parameters.AddWithValue("@TECH_CODE", Trim(txtTechCode.Text))
-                dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-
-                While dbConnections.dReader.Read
-                    If IsDBNull(dbConnections.dReader.Item("TECH_NAME")) Then
-                        lblTechName.Text = "ERROR"
-                    Else
-                        lblTechName.Text = dbConnections.dReader.Item("TECH_NAME")
-                    End If
-
-
-                End While
-                dbConnections.dReader.Close()
-            End If
-
-
-
-
-            strSQL = "SELECT      CUS_ID, CUS_NAME, REASON_FOR_BLOCK FROM         TBL_BLOCK_CUSTOMER WHERE     (COM_ID = @COM_ID) AND (CUS_ID = @CUS_ID)"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(txtCusCode.Text))
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", Trim(selectedCompanyID))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-
-            Dim IsBlockedUser As Boolean = False
-            While dbConnections.dReader.Read
-                IsBlockedUser = True
-            End While
-            dbConnections.dReader.Close()
-
-            If IsBlockedUser = True Then
+            If isBlocked IsNot Nothing Then
                 MessageBox.Show("This Is A Blocked Customer. Please contact your immediate manager.")
                 FormClear()
+                Return False
             End If
 
-        Catch ex As Exception
-            dbConnections.dReader.Close()
-            MsgBox(ex.Message)
-        End Try
+            Dim cusName As String = connection.QueryFirstOrDefault(Of String)(
+           "Select CUS_NAME From MTBL_CUSTOMER_MASTER
+             Where COM_ID = @CompanyID And CUS_ID = @CusID",
+           New With {.CompanyID = companyID, .CusID = selCusCode})
+
+            txtCusCode.Text = selCusCode
+            txtCusName.Text = If(cusName, String.Empty)
+
+            Dim machine = connection.QueryFirstOrDefault(
+            "Select MACHINE_PN, SERIAL, P_NO, IS_SPECIAL_CASE, SPECIAL_CASE_DESC,
+                    M_LOC1, M_LOC2, M_LOC3, M_DEPT, CONTACT_PERSON, CONTACT_NO,
+                    INSTALLATION_DATE, START_MR, BOOK_VALUE, TECH_CODE, REP_CODE
+                From TBL_MACHINE_TRANSACTIONS
+             Where COM_ID = @CompanyID And AG_ID = @AgID And SERIAL = @Serial",
+            New With {.CompanyID = companyID, .AgID = selectedAg, .Serial = selectedSN})
 
 
+            If machine IsNot Nothing Then
+                txtSerial.Text = machine.SERIAL
+                txtPNo.Text = If(machine.P_NO?.ToString(), String.Empty)
+                txtTechCode.Text = If(machine.TECH_CODE?.ToString(), String.Empty)
+                txtSpecialCase.Text = If(machine.SPECIAL_CASE_DESC?.ToString(), String.Empty)
 
-        Return Search
-    End Function
-
-    Private Function GenarateIRNo() As String
-
-        GenarateIRNo = ""
-
-        errorEvent = "Reading information"
-        connectionStaet()
-
-
-        Try
-            strSQL = "SELECT top 1  IR_NO FROM         TBL_INTERNAL_MAIN WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') order by IR_DATE desc"
-
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-
-            dbConnections.sqlCommand.CommandText = strSQL
-            If IsDBNull(dbConnections.sqlCommand.ExecuteScalar) Then
-                GenarateIRNo = globalVariables.selectedCompanyID & "/" & "IR" & "/" & 1
-            Else
-                Dim IRCodeSplit() As String
-                Dim NoRecordFound As Boolean = False
-                Dim IRID As Integer = 0
-                IRCodeSplit = dbConnections.sqlCommand.ExecuteScalar.ToString.Split("/")
-                IRID = IRCodeSplit(2)
-                Do Until NoRecordFound = True
-                    strSQL = "SELECT CASE WHEN EXISTS (SELECT     IR_NO  FROM         TBL_INTERNAL_MAIN WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (IR_NO = '" & globalVariables.selectedCompanyID & "/IR/" & IRID & "')) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
-                    dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-
-                    dbConnections.sqlCommand.CommandText = strSQL
-                    If dbConnections.sqlCommand.ExecuteScalar = False Then
-                        NoRecordFound = True
-                    Else
-                        IRID = IRID + 1
-                    End If
-                Loop
-
-                If NoRecordFound = True Then
-                    GenarateIRNo = IRCodeSplit(0) & "/IR/" & IRID
+                ' Location logic varies by company
+                If companyID = "003" Then
+                    Dim location As String = $"{machine.M_LOC1} {machine.M_LOC2} {machine.M_LOC3}".Trim()
+                    txtCusAdd.Text = location
                 Else
-                    Exit Function
+                    txtCusAdd.Text = If(machine.M_DEPT?.ToString(), String.Empty)
                 End If
 
+                ' ── Step 5: Get machine model ─────────────────────────────────
+                Dim machinePN As String = machine.MACHINE_PN?.ToString().Trim()
+                If Not String.IsNullOrEmpty(machinePN) Then
+                    lblModel.Text = If(
+                                         connection.QueryFirstOrDefault(Of String)(
+                                    "Select Top 1 MACHINE_MODEL FROM MTBL_MACHINE_MASTER
+                                     WHERE COM_ID = @CompanyID AND MACHINE_ID = @MachineID",
+                                    New With {.CompanyID = companyID, .MachineID = machinePN}), String.Empty)
+                End If
+
+                ' ── Step 6: Get technician name ───────────────────────────────
+                If Not String.IsNullOrWhiteSpace(txtTechCode.Text) Then
+                    lblTechName.Text = If(
+                        connection.QueryFirstOrDefault(Of String)(
+                        "SELECT TECH_NAME FROM MTBL_TECH_MASTER
+                         WHERE COM_ID = @CompanyID AND TECH_CODE = @TechCode",
+                        New With {.CompanyID = companyID, .TechCode = txtTechCode.Text.Trim()}), "ERROR")
+                End If
             End If
 
-
+            Return True
         Catch ex As Exception
-            MessageBox.Show("Error code(" & Me.Tag & "X10) " + GenaralErrorMessage + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            inputErrorLog(Me.Text, "" & Me.Tag & "X10", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-        Finally
-
-            connectionClose()
+            MsgBox(ex.Message)
+            Return False
         End Try
     End Function
 
+    Private Function GenerateIRNo() As String
+        Try
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                Dim companyID As String = globalVariables.selectedCompanyID
+                Dim sql As String = "
+                SELECT TOP 1 IR_NO 
+                FROM TBL_INTERNAL_MAIN 
+                WHERE COM_ID = @companyID
+                ORDER BY IR_DATE DESC"
+
+                Dim lastIRNo As String = connection.QueryFirstOrDefault(Of String)(
+                    sql, New With {.companyID = companyID})
+
+                Dim nextID As Integer = 1
+                If Not String.IsNullOrEmpty(lastIRNo) Then
+                    Dim parts() As String = lastIRNo.Split("/")
+                    If parts.Length >= 3 Then
+                        Integer.TryParse(parts(2), nextID)
+                    End If
+                End If
+
+                Dim existingIDs As IEnumerable(Of Integer) =
+                    connection.Query(Of Integer)(
+                    "SELECT CAST(PARSENAME(REPLACE(IR_NO, '/', '.'), 1) AS INT)
+                     FROM TBL_INTERNAL_MAIN
+                     WHERE COM_ID = @CompanyID
+                     AND IR_NO LIKE @Pattern", New With {
+                     .CompanyID = companyID,
+                     .Pattern = companyID & "/IR/%"
+                     })
+
+                Dim usedIDSet As New HashSet(Of Integer)(existingIDs)
+
+                While usedIDSet.Contains(nextID)
+                    nextID += 1
+                End While
+
+                Return $"{companyID}/IR/{nextID}"
+            End Using
+        Catch ex As Exception
+            MsgBox(ex.Message)
+        End Try
+    End Function
 
     Private Function IsDebtorsOutstandingHave(ByRef DaysLimit As Integer, ByRef IsShowMsg As Boolean) As Boolean
-        IsDebtorsOutstandingHave = False
-        Dim TransactionDays As Integer = 0
-        Dim ReadingInvNo As String = ""
+        Dim hasOverDue As Boolean = False
+        Dim overDueInvNo As String = String.Empty
+
         Try
-            strSQL = "SELECT     TBL_INVOICE_MASTER.INV_NO, TBL_RECIPTS.RECIPT_ID, TBL_INVOICE_MASTER.INV_DATE, DATEDIFF(DAY, GETDATE(), TBL_INVOICE_MASTER.INV_DATE) AS Expr1, TBL_INVOICE_MASTER.CUS_ID, TBL_INVOICE_MASTER.COM_ID FROM         TBL_INVOICE_MASTER LEFT OUTER JOIN  TBL_RECIPTS ON TBL_INVOICE_MASTER.COM_ID = TBL_RECIPTS.COM_ID AND TBL_INVOICE_MASTER.INV_NO = TBL_RECIPTS.INV_NO WHERE     (TBL_RECIPTS.RECIPT_ID IS NULL) and TBL_INVOICE_MASTER.COM_ID = '" & globalVariables.selectedCompanyID & "' and TBL_INVOICE_MASTER.CUS_ID = '" & Trim(txtCusCode.Text) & "'"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@COM_ID", globalVariables.selectedCompanyID)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@TECH_CODE", Trim(txtTechCode.Text))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                Dim sql As String = "
+                SELECT TOP 1 
+                    im.INV_NO,
+                    DATEDIFF(DAY, GETDATE(), im.INV_DATE) AS DaysOverdue
+                FROM TBL_INVOICE_MASTER im
+                LEFT JOIN TBL_RECIPTS r 
+                    ON r.COM_ID = im.COM_ID 
+                    AND r.INV_NO = im.INV_NO
+                WHERE r.RECIPT_ID IS NULL
+                    AND im.COM_ID = @CompanyId
+                    AND im.CUS_ID = @CustomerId
+                    AND DATEDIFF(DAY, GETDATE(), im.INV_DATE) >= @DaysLimit
+                ORDER BY im.INV_DATE ASC"
 
+                Dim result = connection.QueryFirstOrDefault(Of OverDueInvoice)(
+                    sql, New With {
+                    .CompanyId = globalVariables.selectedCompanyID,
+                    .CustomerId = txtCusCode.Text.Trim(),
+                    .DaysLimit = DaysLimit
+                    })
 
-            While dbConnections.dReader.Read
-                If IsDBNull(dbConnections.dReader.Item("Expr1")) Then
-                    TransactionDays = 0
-                Else
-                    TransactionDays = dbConnections.dReader.Item("Expr1")
+                If result IsNot Nothing Then
+                    hasOverDue = True
+                    overDueInvNo = result.INV_NO
                 End If
 
-                ReadingInvNo = dbConnections.dReader.Item("INV_NO")
-
-                If TransactionDays >= DaysLimit Then
-                    IsDebtorsOutstandingHave = True
-                    Exit While
+                ' Show message only if requested and there is an overdue invoice
+                If IsShowMsg AndAlso hasOverDue Then
+                    MessageBox.Show(
+                        $"Invoice No {overDueInvNo} is not settled within {DaysLimit} days." & vbCrLf &
+                        "Please settle this before processing this internal transaction.",
+                        "Pending Payment Detected",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information)
                 End If
-
-            End While
-            dbConnections.dReader.Close()
-
-            If IsShowMsg = True Then
-                If IsDebtorsOutstandingHave = True Then
-                    MessageBox.Show("Invoice No " & ReadingInvNo & " is not settled in " & DaysLimit & ". Please settle this before processing this internal.", "Pending Payment detected.", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                End If
-            End If
-
-
+            End Using
         Catch ex As Exception
             MsgBox(ex.Message)
         End Try
-
-        Return IsDebtorsOutstandingHave
     End Function
-
 #End Region
 
     '===================================================================================================================
@@ -884,7 +818,7 @@ Public Class frmInternalRequest
     Private Sub FormClear()
         GetLastIRInfo()
         IsNegative_Internal = ""
-        txtIRNo.Text = GenarateIRNo()
+        txtIRNo.Text = GenerateIRNo()
         cmbIRType.SelectedIndex = 0
         txtSearch.Text = ""
         txtSerial.Text = ""
@@ -2240,4 +2174,13 @@ Public Class frmInternalRequest
     Private Sub txtSearch_TextChanged(sender As Object, e As EventArgs) Handles txtSearch.TextChanged
 
     End Sub
-End Class
+
+    Private Class OverDueInvoice
+        Public Property INV_NO As String
+    End Class
+
+    Private Class IRInfo
+            Public Property IR_NO As String
+            Public Property IR_DATE As DateTime?
+        End Class
+    End Class

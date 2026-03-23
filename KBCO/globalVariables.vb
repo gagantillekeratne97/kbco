@@ -17,7 +17,7 @@
     '//Changes made on 16/07/2025 
     '//Changes made by Gagan Tillekeratne
     '//Fixing of Monthly Revenue report 
-    Public KBridgeVersion As String = " 4.1.2 "
+    Public KBridgeVersion As String = " 4.2.4 "
 
     'Public KBridgeVersion As String = " 4.1.1 "
     '//Receipt Function Fixed

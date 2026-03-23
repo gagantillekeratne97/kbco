@@ -628,155 +628,595 @@ Public Class frmMeaterReading
     '        connectionClose()
 
     '    End Try
-
-
     '    Return save
     'End Function
 
-    Private Async Function GenerateInvoice() As Threading.Tasks.Task(Of Boolean)
-        Try
-            Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/meterreading/generate-invoice"
-            Dim rental As Double = 0
-            Dim Adjustmentval As Double = 0
+    'Private Async Function GenerateInvoice() As Threading.Tasks.Task(Of Boolean)
+    '    Try
+    '        Dim apiUrl As String = $"{dbConnections.kbcoAPIEndPoint}/api/meterreading/generate-invoice"
+    '        Dim rental As Double = 0
+    '        Dim Adjustmentval As Double = 0
 
-            Dim request As New InvoiceRequestModel()
+    '        Dim request As New InvoiceRequestModel()
 
-            request.CompanyID = globalVariables.selectedCompanyID
-            request.AgreementID = Trim(txtSelectedAG.Text)
-            request.CustomerID = Trim(txtCustomerID.Text)
-            request.PeriodStart = dtpStart.Value
-            request.PeriodEnd = dtpEnd.Value
-            request.InvoiceNo = ""
-            Dim InvDateTime As DateTime = dtpInvoiceDate.Value
-            InvDateTime = InvDateTime.Add(Today.Date.TimeOfDay)
-            request.InvoiceDate = InvDateTime
-            request.Address1 = Trim(txLocation1.Text)
-            request.Address2 = Trim(txtLocation2.Text)
-            request.Address3 = Trim(txtLocation3.Text)
-            Dim Billing_Method As String = ""
-            If rbtnActual.Checked = True Then
-                Billing_Method = "Actual"
-            End If
-            If rbtnCommitment.Checked = True Then
-                Billing_Method = "Commitment"
-            End If
-            If rbtnRental.Checked = True Then
-                Billing_Method = "Rental"
-            End If
+    '        request.CompanyID = globalVariables.selectedCompanyID
+    '        request.AgreementID = Trim(txtSelectedAG.Text)
+    '        request.CustomerID = Trim(txtCustomerID.Text)
+    '        request.PeriodStart = dtpStart.Value
+    '        request.PeriodEnd = dtpEnd.Value
+    '        request.InvoiceNo = ""
+    '        Dim InvDateTime As DateTime = dtpInvoiceDate.Value
+    '        InvDateTime = InvDateTime.Add(Today.Date.TimeOfDay)
+    '        request.InvoiceDate = InvDateTime
+    '        request.Address1 = Trim(txLocation1.Text)
+    '        request.Address2 = Trim(txtLocation2.Text)
+    '        request.Address3 = Trim(txtLocation3.Text)
+    '        Dim Billing_Method As String = ""
+    '        If rbtnActual.Checked = True Then
+    '            Billing_Method = "Actual"
+    '        End If
+    '        If rbtnCommitment.Checked = True Then
+    '            Billing_Method = "Commitment"
+    '        End If
+    '        If rbtnRental.Checked = True Then
+    '            Billing_Method = "Rental"
+    '        End If
 
-            Dim Inv_Status As String = ""
-            If rbtnInvStatusAll.Checked = True Then
-                Inv_Status = "All"
-            End If
-            If rbtnInvStatusIndividual.Checked = True Then
-                Inv_Status = "Individual"
-            End If
-            request.BillingMethod = Billing_Method
-            request.InvoiceStatus = Inv_Status
-            request.VATType = lblVatType.Text
-            request.IsPrinted = False
-            request.UserSession = userSession
-            request.UserName = userName
-            request.IsNBT = cbNBT.CheckState
-            request.IsVAT = cbVAT.CheckState
-            request.NBT2Percent = NBT2
-            request.VATPercent = VAT
-            If Trim(txtRental.Text) = "" Then
-                rental = 0
-                request.Rental = rental
-            Else
-                request.Rental = CDbl(Trim(txtRental.Text))
-                rental = CDbl(Trim(txtRental.Text))
-            End If
+    '        Dim Inv_Status As String = ""
+    '        If rbtnInvStatusAll.Checked = True Then
+    '            Inv_Status = "All"
+    '        End If
+    '        If rbtnInvStatusIndividual.Checked = True Then
+    '            Inv_Status = "Individual"
+    '        End If
+    '        request.BillingMethod = Billing_Method
+    '        request.InvoiceStatus = Inv_Status
+    '        request.VATType = lblVatType.Text
+    '        request.IsPrinted = False
+    '        request.UserSession = userSession
+    '        request.UserName = userName
+    '        request.IsNBT = cbNBT.CheckState
+    '        request.IsVAT = cbVAT.CheckState
+    '        request.NBT2Percent = NBT2
+    '        request.VATPercent = VAT
+    '        If Trim(txtRental.Text) = "" Then
+    '            rental = 0
+    '            request.Rental = rental
+    '        Else
+    '            request.Rental = CDbl(Trim(txtRental.Text))
+    '            rental = CDbl(Trim(txtRental.Text))
+    '        End If
 
-            If Trim(txtAdujstment.Text) = "" Then
-                request.Adjustment = Nothing
-                Adjustmentval = 0
-            Else
-                request.Adjustment = CDbl(Trim(txtAdujstment.Text))
-                Adjustmentval = CDbl(Trim(txtAdujstment.Text))
-            End If
-            request.InvoiceValue = (CDbl(Trim(txtInvoiceValue.Text) + rental + Adjustmentval))
-            request.RepCode = Trim(txtRepCode.Text)
+    '        If Trim(txtAdujstment.Text) = "" Then
+    '            request.Adjustment = Nothing
+    '            Adjustmentval = 0
+    '        Else
+    '            request.Adjustment = CDbl(Trim(txtAdujstment.Text))
+    '            Adjustmentval = CDbl(Trim(txtAdujstment.Text))
+    '        End If
+    '        request.InvoiceValue = (CDbl(Trim(txtInvoiceValue.Text) + rental + Adjustmentval))
+    '        request.RepCode = Trim(txtRepCode.Text)
 
-            'Meter Reading 
-            request.MeterReadings = New List(Of MeterReading)
-            For Each row As DataGridViewRow In dgMR.Rows
-                If row.IsNewRow Then Continue For
+    '        'Meter Reading 
+    '        request.MeterReadings = New List(Of MeterReading)
+    '        For Each row As DataGridViewRow In dgMR.Rows
+    '            If row.IsNewRow Then Continue For
 
-                Dim reading As New MeterReading()
+    '            Dim reading As New MeterReading()
 
-                reading.SerialNo = If(IsDBNull(row.Cells("SN").Value) OrElse row.Cells("SN").Value Is Nothing,
-                              "", row.Cells("SN").Value.ToString())
+    '            reading.SerialNo = If(IsDBNull(row.Cells("SN").Value) OrElse row.Cells("SN").Value Is Nothing,
+    '                          "", row.Cells("SN").Value.ToString())
 
-                reading.MakeModel = If(IsDBNull(row.Cells("MR_MAKE").Value) OrElse row.Cells("MR_MAKE").Value Is Nothing,
-                               "", row.Cells("MR_MAKE").Value.ToString())
+    '            reading.MakeModel = If(IsDBNull(row.Cells("MR_MAKE").Value) OrElse row.Cells("MR_MAKE").Value Is Nothing,
+    '                           "", row.Cells("MR_MAKE").Value.ToString())
 
-                reading.Location = If(IsDBNull(row.Cells("M_LOC").Value) OrElse row.Cells("M_LOC").Value Is Nothing,
-                              "", row.Cells("M_LOC").Value.ToString())
+    '            reading.Location = If(IsDBNull(row.Cells("M_LOC").Value) OrElse row.Cells("M_LOC").Value Is Nothing,
+    '                          "", row.Cells("M_LOC").Value.ToString())
 
-                reading.StartReading = If(IsDBNull(row.Cells("START_MR").Value) OrElse Not IsNumeric(row.Cells("START_MR").Value),
-                                  0, CDbl(row.Cells("START_MR").Value))
+    '            reading.StartReading = If(IsDBNull(row.Cells("START_MR").Value) OrElse Not IsNumeric(row.Cells("START_MR").Value),
+    '                              0, CDbl(row.Cells("START_MR").Value))
 
-                reading.EndReading = If(IsDBNull(row.Cells("END_MR").Value) OrElse Not IsNumeric(row.Cells("END_MR").Value),
-                                0, CDbl(row.Cells("END_MR").Value))
+    '            reading.EndReading = If(IsDBNull(row.Cells("END_MR").Value) OrElse Not IsNumeric(row.Cells("END_MR").Value),
+    '                            0, CDbl(row.Cells("END_MR").Value))
 
-                reading.Copies = If(IsDBNull(row.Cells("MR_COPIES").Value) OrElse Not IsNumeric(row.Cells("MR_COPIES").Value),
-                            0, CInt(row.Cells("MR_COPIES").Value))
+    '            reading.Copies = If(IsDBNull(row.Cells("MR_COPIES").Value) OrElse Not IsNumeric(row.Cells("MR_COPIES").Value),
+    '                        0, CInt(row.Cells("MR_COPIES").Value))
 
-                reading.Wastage = If(IsDBNull(row.Cells("WAISTAGE").Value) OrElse Not IsNumeric(row.Cells("WAISTAGE").Value),
-                             Nothing, CDbl(row.Cells("WAISTAGE").Value))
+    '            reading.Wastage = If(IsDBNull(row.Cells("WAISTAGE").Value) OrElse Not IsNumeric(row.Cells("WAISTAGE").Value),
+    '                         Nothing, CDbl(row.Cells("WAISTAGE").Value))
 
-                reading.ProductNo = If(IsDBNull(row.Cells("P_NO").Value) OrElse row.Cells("P_NO").Value Is Nothing,
-                               "", row.Cells("P_NO").Value.ToString())
+    '            reading.ProductNo = If(IsDBNull(row.Cells("P_NO").Value) OrElse row.Cells("P_NO").Value Is Nothing,
+    '                           "", row.Cells("P_NO").Value.ToString())
 
-                request.MeterReadings.Add(reading)
-            Next
+    '            request.MeterReadings.Add(reading)
+    '        Next
 
 
-            'Adding commitments 
-            request.BwCommitments = New List(Of BwCommitment)
-            For Each row As DataGridViewRow In dgBw.Rows
-                If row.Index <> (dgBw.RowCount - 1) Then
-                    Dim bwcommitment As New BwCommitment With {
-                        .Rate = dgBw.Rows(row.Index).Cells("BW_RATE").Value.ToString(),
-                        .Range1 = dgBw.Rows(row.Index).Cells("BW_RANGE_1").Value.ToString(),
-                        .Range2 = dgBw.Rows(row.Index).Cells("BW_RANGE_2").Value.ToString()
-                    }
+    '        'Adding commitments 
+    '        request.BwCommitments = New List(Of BwCommitment)
+    '        For Each row As DataGridViewRow In dgBw.Rows
+    '            If row.Index <> (dgBw.RowCount - 1) Then
+    '                Dim bwcommitment As New BwCommitment With {
+    '                    .Rate = dgBw.Rows(row.Index).Cells("BW_RATE").Value.ToString(),
+    '                    .Range1 = dgBw.Rows(row.Index).Cells("BW_RANGE_1").Value.ToString(),
+    '                    .Range2 = dgBw.Rows(row.Index).Cells("BW_RANGE_2").Value.ToString()
+    '                }
 
-                    If dgBw.Rows(row.Index).Cells("COMMI_BREAKUP").Value = Nothing Then
-                        bwcommitment.CopyBreakup = DBNull.Value.ToString()
-                    Else
-                        bwcommitment.CopyBreakup = dgBw.Rows(row.Index).Cells("COMMI_BREAKUP").Value.ToString()
-                    End If
-                    request.BwCommitments.Add(bwcommitment)
-                End If
-            Next
-            Dim jsonData As String = JsonConvert.SerializeObject(request)
-            Dim content As New StringContent(jsonData, Encoding.UTF8, "application/json")
+    '                If dgBw.Rows(row.Index).Cells("COMMI_BREAKUP").Value = Nothing Then
+    '                    bwcommitment.CopyBreakup = DBNull.Value.ToString()
+    '                Else
+    '                    bwcommitment.CopyBreakup = dgBw.Rows(row.Index).Cells("COMMI_BREAKUP").Value.ToString()
+    '                End If
+    '                request.BwCommitments.Add(bwcommitment)
+    '            End If
+    '        Next
+    '        Dim jsonData As String = JsonConvert.SerializeObject(request)
+    '        Dim content As New StringContent(jsonData, Encoding.UTF8, "application/json")
 
-            Using client As New HttpClient()
-                Try
-                    Dim response As HttpResponseMessage = Await client.PostAsync(apiUrl, content)
-                    If response.IsSuccessStatusCode Then
-                        Return True
-                    Else
-                        MessageBox.Show("API Error: " & response.StatusCode.ToString())
-                        Return False
-                    End If
-                Catch ex As Exception
-                    MessageBox.Show("Error: " & ex.Message)
+    '        Using client As New HttpClient()
+    '            Try
+    '                Dim response As HttpResponseMessage = Await client.PostAsync(apiUrl, content)
+    '                If response.IsSuccessStatusCode Then
+    '                    Return True
+    '                Else
+    '                    MessageBox.Show("API Error: " & response.StatusCode.ToString())
+    '                    Return False
+    '                End If
+    '            Catch ex As Exception
+    '                MessageBox.Show("Error: " & ex.Message)
+    '                Return False
+    '            End Try
+    '        End Using
+    '    Catch ex As Exception
+    '        MessageBox.Show(ex.Message)
+    '    End Try
+    'End Function
+
+    Private Function Process_Invoice() As Boolean
+        Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo,
+                               MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
+        If conf <> vbYes Then Return False
+        If Not isDataValid() Then Return False
+
+        Dim invoiceNo As String = Genarate_INV_NO()
+        If String.IsNullOrEmpty(invoiceNo) Then Return False
+
+        Dim billingMethod As String = GetBillingMethod()
+        Dim invStatus As String = GetInvoiceStatus()
+        Dim rental As Double = If(String.IsNullOrWhiteSpace(txtRental.Text), 0, CDbl(txtRental.Text.Trim()))
+        Dim adjustment As Double = If(String.IsNullOrWhiteSpace(txtAdujstment.Text), 0, CDbl(txtAdujstment.Text.Trim()))
+
+        connectionStaet()
+        errorEvent = "Save"
+
+        Using tran = dbConnections.sqlConnection.BeginTransaction()
+            Try
+                ' ── 1. Duplicate check ──────────────────────────────────────────
+                Dim dupSql = "SELECT CAST(
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM TBL_INVOICE_MASTER
+                        WHERE COM_ID           = @COM_ID
+                          AND AG_ID            = @AG_ID
+                          AND CUS_ID           = @CUS_ID
+                          AND INV_PERIOD_START = @INV_PERIOD_START
+                          AND INV_PERIOD_END   = @INV_PERIOD_END
+                          AND INV_STATUS_T    <> 'CANCELLED'
+                    ) THEN 1 ELSE 0 END
+                AS BIT)"
+
+                Dim dupParam = New With {
+                .COM_ID = globalVariables.selectedCompanyID,
+                .AG_ID = txtSelectedAG.Text.Trim(),
+                .CUS_ID = txtCustomerID.Text.Trim(),
+                .INV_PERIOD_START = dtpStart.Value.ToString("yyyy/MM/dd"),
+                .INV_PERIOD_END = dtpEnd.Value.ToString("yyyy/MM/dd")
+            }
+
+                Dim isDuplicate = dbConnections.sqlConnection.ExecuteScalar(Of Boolean)(
+                dupSql, dupParam, tran)
+
+                If isDuplicate Then
+                    MessageBox.Show("Invoice already processed.", "Invalid attempt.",
+                                MessageBoxButtons.OK, MessageBoxIcon.Stop)
                     Return False
-                End Try
-            End Using
-        Catch ex As Exception
-            MessageBox.Show(ex.Message)
-        End Try
+                End If
+
+                ' ── 2. Build master DTO ─────────────────────────────────────────
+                Dim invDate As DateTime = dtpInvoiceDate.Value.Date.Add(Today.TimeOfDay)
+
+                Dim master As New InvoiceMasterDto With {
+                .COM_ID = globalVariables.selectedCompanyID,
+                .AG_ID = txtSelectedAG.Text.Trim(),
+                .CUS_ID = txtCustomerID.Text.Trim(),
+                .INV_PERIOD_START = dtpStart.Value,
+                .INV_PERIOD_END = dtpEnd.Value,
+                .INV_NO = invoiceNo.Trim(),
+                .INV_DATE = invDate,
+                .INV_ADD1 = txLocation1.Text.Trim(),
+                .INV_ADD2 = txtLocation2.Text.Trim(),
+                .INV_ADD3 = txtLocation3.Text.Trim(),
+                .BILLING_METHOD = billingMethod,
+                .INV_STATUS = invStatus,
+                .VAT_TYPE = lblVatType.Text.Trim(),
+                .INV_PRINTED = False,
+                .INV_BY = userSession,
+                .INV_BY_NAME = userName,
+                .INV_HEADDING = "",
+                .IS_NBT = cbNBT.CheckState,
+                .IS_VAT = cbVAT.CheckState,
+                .VAT_P = VAT,
+                .NBT2_P = NBT2,
+                .RENTAL_VAL = If(String.IsNullOrWhiteSpace(txtRental.Text), DBNull.Value, CDbl(txtRental.Text.Trim())),
+                .ADJUSTMENT = If(String.IsNullOrWhiteSpace(txtAdujstment.Text), DBNull.Value, CDbl(txtAdujstment.Text.Trim())),
+                .INV_VAL = CDbl(txtInvoiceValue.Text.Trim()) + rental + adjustment,
+                .REP_CODE = txtRepCode.Text.Trim()
+            }
+
+                ' ── 3. INSERT master ────────────────────────────────────────────
+                Dim masterSql = "INSERT INTO TBL_INVOICE_MASTER
+                                (COM_ID, AG_ID, CUS_ID, INV_PERIOD_START, INV_PERIOD_END,
+                                 INV_NO, INV_DATE, INV_ADD1, INV_ADD2, INV_ADD3,
+                                 BILLING_METHOD, INV_STATUS, VAT_TYPE, INV_PRINTED,
+                                 INV_BY, INV_BY_NAME, INV_HEADDING, IS_NBT, IS_VAT,
+                                 RENTAL_VAL, INV_VAL, REP_CODE, ADJUSTMENT, VAT_P, NBT2_P)
+                             VALUES
+                                (@COM_ID, @AG_ID, @CUS_ID, @INV_PERIOD_START, @INV_PERIOD_END,
+                                 @INV_NO, @INV_DATE, @INV_ADD1, @INV_ADD2, @INV_ADD3,
+                                 @BILLING_METHOD, @INV_STATUS, @VAT_TYPE, @INV_PRINTED,
+                                 @INV_BY, @INV_BY_NAME, @INV_HEADDING, @IS_NBT, @IS_VAT,
+                                 @RENTAL_VAL, @INV_VAL, @REP_CODE, @ADJUSTMENT, @VAT_P, @NBT2_P)"
+
+                dbConnections.sqlConnection.Execute(masterSql, master, tran)
+
+                ' ── 4. INSERT invoice detail rows ───────────────────────────────
+                Dim detailSql = "INSERT INTO TBL_INVOICE_DET
+                                (COM_ID, AG_ID, CUS_ID, PERIOD_START, PERIOD_END,
+                                 SERIAL_NO, INV_NO, MAKE_MODEL, INV_ADD1, INV_ADD2,
+                                 INV_ADD3, BILLING_METHOD, M_LOC, START_MR, END_MR,
+                                 INV_COPIES, WAISTAGE, P_NO)
+                             VALUES
+                                (@COM_ID, @AG_ID, @CUS_ID, @PERIOD_START, @PERIOD_END,
+                                 @SERIAL_NO, @INV_NO, @MAKE_MODEL, @INV_ADD1, @INV_ADD2,
+                                 @INV_ADD3, @BILLING_METHOD, @M_LOC, @START_MR, @END_MR,
+                                 @INV_COPIES, @WAISTAGE, @P_NO)"
+
+                Dim detailRows = dgMR.Rows.Cast(Of DataGridViewRow)() _
+                             .Where(Function(r) Not String.IsNullOrEmpty(CStr(r.Cells(0).Value))) _
+                             .Select(Function(r)
+                                         Dim waistage As Double = 0
+                                         Dim rawW = r.Cells("WAISTAGE").Value
+                                         If rawW IsNot Nothing AndAlso Not IsDBNull(rawW) Then
+                                             Double.TryParse(rawW.ToString(), waistage)
+                                         End If
+                                         Return New InvoiceDetailDto With {
+                                             .COM_ID = globalVariables.selectedCompanyID,
+                                             .AG_ID = txtSelectedAG.Text.Trim(),
+                                             .CUS_ID = txtCustomerID.Text.Trim(),
+                                             .PERIOD_START = dtpStart.Value,
+                                             .PERIOD_END = dtpEnd.Value,
+                                             .SERIAL_NO = r.Cells("SN").Value,
+                                             .INV_NO = invoiceNo,
+                                             .MAKE_MODEL = r.Cells("MR_MAKE").Value,
+                                             .INV_ADD1 = txLocation1.Text.Trim(),
+                                             .INV_ADD2 = txtLocation2.Text.Trim(),
+                                             .INV_ADD3 = txtLocation3.Text.Trim(),
+                                             .BILLING_METHOD = billingMethod,
+                                             .M_LOC = r.Cells("M_LOC").Value,
+                                             .START_MR = r.Cells("START_MR").Value,
+                                             .END_MR = r.Cells("END_MR").Value,
+                                             .INV_COPIES = r.Cells("MR_COPIES").Value,
+                                             .WAISTAGE = waistage,
+                                             .P_NO = r.Cells("P_NO").Value
+                                         }
+                                     End Function).ToList()
+
+                dbConnections.sqlConnection.Execute(detailSql, detailRows, tran)
+
+                ' ── 5. Mark meter readings as processed ─────────────────────────
+                Dim mrSql = "UPDATE TBL_METER_READING_MASTER
+                         SET    DATA_PROCESSED      = 1,
+                                DATA_PROCESSED_DATE = GETDATE(),
+                                DATA_PROCESSED_BY   = @DATA_PROCESSED_BY
+                         WHERE  COM_ID       = @COM_ID
+                           AND  PERIOD_START = @PERIOD_START
+                           AND  PERIOD_END   = @PERIOD_END
+                           AND  CUS_ID       = @CUS_ID
+                           AND  AG_ID        = @AG_ID"
+
+                dbConnections.sqlConnection.Execute(
+                mrSql,
+                New With {
+                    .COM_ID = globalVariables.selectedCompanyID,
+                    .AG_ID = txtSelectedAG.Text.Trim(),
+                    .CUS_ID = txtCustomerID.Text.Trim(),
+                    .PERIOD_START = dtpStart.Value,
+                    .PERIOD_END = dtpEnd.Value,
+                    .DATA_PROCESSED_BY = userSession
+                }, tran)
+
+                ' ── 6. BW commitment rows (delete + re-insert) ──────────────────
+                If dgBw.Rows.Count > 0 Then
+                    Dim deleteBwSql = "DELETE FROM TBL_INV_BW_COMMITMENT
+                                   WHERE COM_ID   = @COM_ID
+                                     AND AG_CODE  = @AG_CODE
+                                     AND INV_NO   = @INV_NO
+                                     AND CUS_ID   = @CUS_ID"
+
+                    dbConnections.sqlConnection.Execute(
+                    deleteBwSql,
+                    New With {
+                        .COM_ID = globalVariables.selectedCompanyID,
+                        .AG_CODE = txtSelectedAG.Text.Trim(),
+                        .INV_NO = invoiceNo,
+                        .CUS_ID = txtCustomerID.Text.Trim()
+                    }, tran)
+
+                    Dim bwSql = "INSERT INTO TBL_INV_BW_COMMITMENT
+                                (INV_NO, COM_ID, CUS_ID, AG_CODE,
+                                 BW_RANGE_1, BW_RANGE_2, BW_RATE, BW_COPY_BREAKUP)
+                             VALUES
+                                (@INV_NO, @COM_ID, @CUS_ID, @AG_CODE,
+                                 @BW_RANGE_1, @BW_RANGE_2, @BW_RATE, @BW_COPY_BREAKUP)"
+
+                    Dim bwRows = dgBw.Rows.Cast(Of DataGridViewRow)() _
+                             .Where(Function(r) r.Index <> dgBw.RowCount - 1) _
+                             .Select(Function(r)
+                                         Dim breakup = r.Cells("COMMI_BREAKUP").Value
+                                         Return New BwCommitmentDto With {
+                                             .INV_NO = invoiceNo,
+                                             .COM_ID = globalVariables.selectedCompanyID.Trim(),
+                                             .CUS_ID = txtCustomerID.Text.Trim(),
+                                             .AG_CODE = txtSelectedAG.Text.Trim(),
+                                             .BW_RANGE_1 = r.Cells("BW_RANGE_1").Value,
+                                             .BW_RANGE_2 = r.Cells("BW_RANGE_2").Value,
+                                             .BW_RATE = r.Cells("BW_RATE").Value,
+                                             .BW_COPY_BREAKUP = If(breakup Is Nothing, DBNull.Value, breakup)
+                                         }
+                                     End Function).ToList()
+
+                    dbConnections.sqlConnection.Execute(bwSql, bwRows, tran)
+                End If
+
+                ' ── 7. Commit ───────────────────────────────────────────────────
+                tran.Commit()
+                txtInvoiceNo.Text = invoiceNo
+                MessageBox.Show("Invoice Process Completed.", "Completed.",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information)
+                Return True
+
+            Catch ex As Exception
+                tran.Rollback()
+                MessageBox.Show(
+                $"Error code({globalVariables.selectedCompanyID}-{Me.Tag}X1) {GenaralErrorMessage}{ex.Message}",
+                "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+                Return False
+
+            Finally
+                connectionClose()
+            End Try
+        End Using
     End Function
 
-    Private Async Function Process_Invoice() As Threading.Tasks.Task(Of Boolean)
-        Dim processed As Boolean = Await GenerateInvoice()
+    ' ── Helpers ─────────────────────────────────────────────────────────────────
+
+    Private Function GetBillingMethod() As String
+        If rbtnActual.Checked Then Return "Actual"
+        If rbtnCommitment.Checked Then Return "Commitment"
+        If rbtnRental.Checked Then Return "Rental"
+        Return ""
     End Function
+
+    Private Function GetInvoiceStatus() As String
+        If rbtnInvStatusAll.Checked Then Return "All"
+        If rbtnInvStatusIndividual.Checked Then Return "Individual"
+        Return ""
+    End Function
+
+    'Private Async Function Process_Invoice() As Threading.Tasks.Task(Of Boolean)
+    '    Dim conf = MessageBox.Show(SaveMessage, "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
+    '    If conf <> vbYes Then Return False
+    '    If Not isDataValid() Then Return False
+    '    Dim invoiceNo As String = Genarate_INV_NO()
+    '    If String.IsNullOrWhiteSpace(invoiceNo) Then Return False
+    '    Dim billingMethod As String = If(rbtnActual.Checked, "Actual",
+    '                                    If(rbtnCommitment.Checked, "Commitment",
+    '                                    If(rbtnRental.Checked, "Rental", "")))
+    '    Dim invStatus As String = If(rbtnInvStatusAll.Checked, "All",
+    '                              If(rbtnInvStatusIndividual.Checked, "Individual", ""))
+    '    Dim rentalVal As Object = If(String.IsNullOrWhiteSpace(txtRental.Text),
+    '                             DBNull.Value, CDbl(txtRental.Text.Trim()))
+    '    Dim adjustVal As Object = If(String.IsNullOrWhiteSpace(txtAdujstment.Text),
+    '                                 DBNull.Value, CDbl(txtAdujstment.Text.Trim()))
+    '    Dim rentalDbl As Double = If(rentalVal Is DBNull.Value, 0, CDbl(rentalVal))
+    '    Dim adjustDbl As Double = If(adjustVal Is DBNull.Value, 0, CDbl(adjustVal))
+    '    Dim invDateWithTime As DateTime = dtpInvoiceDate.Value.Date.Add(DateTime.Today.TimeOfDay)
+    '    Const checkSql As String =
+    '    "SELECT COUNT(1) FROM TBL_INVOICE_MASTER
+    '     WHERE COM_ID=@COM_ID AND AG_ID=@AG_ID AND CUS_ID=@CUS_ID
+    '       AND INV_PERIOD_START=@Start AND INV_PERIOD_END=@End
+    '       AND INV_STATUS_T <> 'CANCELLED'"
+    '    ' --- Master INSERT ---
+    '    Const masterInsertSql As String =
+    '        "INSERT INTO TBL_INVOICE_MASTER
+    '       (COM_ID,AG_ID,CUS_ID,INV_PERIOD_START,INV_PERIOD_END,INV_NO,INV_DATE,
+    '        INV_ADD1,INV_ADD2,INV_ADD3,BILLING_METHOD,INV_STATUS,VAT_TYPE,INV_PRINTED,
+    '        INV_BY,INV_BY_NAME,INV_HEADDING,IS_NBT,IS_VAT,RENTAL_VAL,INV_VAL,
+    '        REP_CODE,ADJUSTMENT,VAT_P,NBT2_P)
+    '     VALUES
+    '       (@COM_ID,@AG_ID,@CUS_ID,@Start,@End,@InvNo,@InvDate,
+    '        @Add1,@Add2,@Add3,@BillingMethod,@InvStatus,@VatType,0,
+    '        @InvBy,@InvByName,'',@IsNBT,@IsVAT,@RentalVal,@InvVal,
+    '        @RepCode,@Adjustment,@VatP,@NbtP)"
+    '    ' --- Meter reading UPDATE ---
+    '    Const mrUpdateSql As String =
+    '    "UPDATE TBL_METER_READING_MASTER
+    '     SET DATA_PROCESSED=1, DATA_PROCESSED_DATE=GETDATE(), DATA_PROCESSED_BY=@ProcessedBy
+    '     WHERE COM_ID=@COM_ID AND AG_ID=@AG_ID AND CUS_ID=@CUS_ID
+    '       AND PERIOD_START=@Start AND PERIOD_END=@End"
+
+    '    Dim masterParams As New With {
+    '        .COM_ID = globalVariables.selectedCompanyID,
+    '        .AG_ID = txtSelectedAG.Text.Trim(),
+    '        .CUS_ID = txtCustomerID.Text.Trim(),
+    '        .Start = dtpStart.Value,
+    '        .End = dtpEnd.Value,
+    '        .InvNo = invoiceNo,
+    '        .InvDate = invDateWithTime,
+    '        .Add1 = txLocation1.Text.Trim(),
+    '        .Add2 = txtLocation2.Text.Trim(),
+    '        .Add3 = txtLocation3.Text.Trim(),
+    '        .BillingMethod = billingMethod,
+    '        .InvStatus = invStatus,
+    '        .VatType = lblVatType.Text.Trim(),
+    '        .InvBy = userSession,
+    '        .InvByName = userName,
+    '        .IsNBT = cbNBT.CheckState,
+    '        .IsVAT = cbVAT.CheckState,
+    '        .RentalVal = rentalVal,
+    '        .InvVal = CDbl(txtInvoiceValue.Text.Trim()) + rentalDbl + adjustDbl,
+    '        .RepCode = txtRepCode.Text.Trim(),
+    '        .Adjustment = adjustVal,
+    '        .VatP = VAT,
+    '        .NbtP = NBT2,
+    '        .ProcessedBy = userSession
+    '    }
+
+    '    Try
+    '        Using connection As New SqlConnection(connectionString)
+    '            connection.Open()
+    '            ' Duplicate check
+    '            Dim exists As Integer = Await connection.ExecuteScalarAsync(Of Integer)(checkSql, masterParams)
+    '            If exists > 0 Then
+    '                MessageBox.Show("Invoice already processed.", "Invalid attempt.",
+    '                                MessageBoxButtons.OK, MessageBoxIcon.Stop)
+    '                Return False
+    '            End If
+    '            Using tran = connection.BeginTransaction()
+    '                Try
+    '                    Await connection.ExecuteAsync(masterInsertSql, masterParams, tran)
+    '                    ' 2) Bulk-insert detail rows (one round-trip via TVP)
+    '                    Dim detailTable As New DataTable()
+    '                    With detailTable
+    '                        .Columns.Add("COM_ID", GetType(String))
+    '                        .Columns.Add("AG_ID", GetType(String))
+    '                        .Columns.Add("CUS_ID", GetType(String))
+    '                        .Columns.Add("PERIOD_START", GetType(DateTime))
+    '                        .Columns.Add("PERIOD_END", GetType(DateTime))
+    '                        .Columns.Add("SERIAL_NO", GetType(String))
+    '                        .Columns.Add("INV_NO", GetType(String))
+    '                        .Columns.Add("MAKE_MODEL", GetType(String))
+    '                        .Columns.Add("INV_ADD1", GetType(String))
+    '                        .Columns.Add("INV_ADD2", GetType(String))
+    '                        .Columns.Add("INV_ADD3", GetType(String))
+    '                        .Columns.Add("BILLING_METHOD", GetType(String))
+    '                        .Columns.Add("M_LOC", GetType(String))
+    '                        .Columns.Add("START_MR", GetType(Object))
+    '                        .Columns.Add("END_MR", GetType(Object))
+    '                        .Columns.Add("INV_COPIES", GetType(Object))
+    '                        .Columns.Add("WAISTAGE", GetType(Double))
+    '                        .Columns.Add("P_NO", GetType(Object))
+    '                    End With
+    '                    For Each row As DataGridViewRow In dgMR.Rows
+    '                        Dim cellVal = row.Cells(0).Value
+    '                        If cellVal IsNot Nothing AndAlso cellVal.ToString() <> "" Then
+    '                            Dim waistage As Double = 0
+    '                            Dim wCell = row.Cells("WAISTAGE").Value
+    '                            If wCell IsNot Nothing AndAlso Not IsDBNull(wCell) Then
+    '                                Double.TryParse(wCell.ToString(), waistage)
+    '                            End If
+    '                            detailTable.Rows.Add(
+    '                                globalVariables.selectedCompanyID,
+    '                                txtSelectedAG.Text.Trim(),
+    '                                txtCustomerID.Text.Trim(),
+    '                                dtpStart.Value, dtpEnd.Value,
+    '                                row.Cells("SN").Value,
+    '                                invoiceNo,
+    '                                row.Cells("MR_MAKE").Value,
+    '                                txLocation1.Text.Trim(),
+    '                                txtLocation2.Text.Trim(),
+    '                                txtLocation3.Text.Trim(),
+    '                                billingMethod,
+    '                                row.Cells("M_LOC").Value,
+    '                                row.Cells("START_MR").Value,
+    '                                row.Cells("END_MR").Value,
+    '                                row.Cells("MR_COPIES").Value,
+    '                                waistage,
+    '                                row.Cells("P_NO").Value)
+    '                        End If
+    '                    Next
+    '                    ' Bulk copy detail rows — single network call
+    '                    Using bulkCopy As New SqlBulkCopy(connection, SqlBulkCopyOptions.Default, tran)
+    '                        bulkCopy.DestinationTableName = "TBL_INVOICE_DET"
+    '                        bulkCopy.BulkCopyTimeout = 120
+    '                        Await bulkCopy.WriteToServerAsync(detailTable)
+    '                    End Using
+
+    '                    ' 3) Update meter reading status
+    '                    Await connection.ExecuteAsync(mrUpdateSql, masterParams, tran)
+    '                    ' 4) BW Commitment rows
+    '                    If dgBw.Rows.Count > 0 Then
+    '                        Await connection.ExecuteAsync(
+    '                            "DELETE FROM TBL_INV_BW_COMMITMENT
+    '                         WHERE COM_ID=@COM_ID AND AG_CODE=@AG_ID AND INV_NO=@InvNo AND CUS_ID=@CUS_ID",
+    '                            masterParams, tran)
+
+    '                        Dim bwTable As New DataTable()
+    '                        With bwTable
+    '                            .Columns.Add("INV_NO", GetType(String))
+    '                            .Columns.Add("COM_ID", GetType(String))
+    '                            .Columns.Add("CUS_ID", GetType(String))
+    '                            .Columns.Add("AG_CODE", GetType(String))
+    '                            .Columns.Add("BW_RANGE_1", GetType(Object))
+    '                            .Columns.Add("BW_RANGE_2", GetType(Object))
+    '                            .Columns.Add("BW_RATE", GetType(Object))
+    '                            .Columns.Add("BW_COPY_BREAKUP", GetType(Object))
+    '                        End With
+
+    '                        For Each row As DataGridViewRow In dgBw.Rows
+    '                            If row.Index = dgBw.RowCount - 1 Then Continue For
+    '                            Dim breakup As Object = If(row.Cells("COMMI_BREAKUP").Value,
+    '                                                       DBNull.Value,
+    '                                                       row.Cells("COMMI_BREAKUP").Value)
+    '                            bwTable.Rows.Add(
+    '                                invoiceNo,
+    '                                globalVariables.selectedCompanyID,
+    '                                txtCustomerID.Text.Trim(),
+    '                                txtSelectedAG.Text.Trim(),
+    '                                row.Cells("BW_RANGE_1").Value,
+    '                                row.Cells("BW_RANGE_2").Value,
+    '                                row.Cells("BW_RATE").Value,
+    '                                breakup)
+    '                        Next
+
+    '                        Using bulkCopy As New SqlBulkCopy(connection, SqlBulkCopyOptions.Default, tran)
+    '                            bulkCopy.DestinationTableName = "TBL_INV_BW_COMMITMENT"
+    '                            bulkCopy.BulkCopyTimeout = 120
+    '                            Await bulkCopy.WriteToServerAsync(bwTable)
+    '                        End Using
+    '                    End If
+    '                    tran.Commit()
+    '                    txtInvoiceNo.Text = invoiceNo
+    '                    MessageBox.Show("Invoice Process Completed.", "Completed.",
+    '                                    MessageBoxButtons.OK, MessageBoxIcon.Information)
+    '                    Return True
+    '                Catch ex As Exception
+    '                    MsgBox(ex.Message)
+    '                    tran.Rollback()
+    '                    inputErrorLog(Me.Text,
+    '                                  $"{globalVariables.selectedCompanyID}-{Me.Tag}X1",
+    '                                  "Save", userSession, userName, DateTime.Now, ex.Message)
+    '                    MessageBox.Show($"Error code({globalVariables.selectedCompanyID}-{Me.Tag}X1) " &
+    '                                    GenaralErrorMessage & ex.Message,
+    '                                    "", MessageBoxButtons.OK, MessageBoxIcon.Error)
+    '                    Return False
+    '                End Try
+    '            End Using
+    '        End Using
+    '    Catch ex As Exception
+    '        MsgBox(ex.Message)
+    '        Return False
+    '    End Try
+    'End Function
 
     'Private Function Process_Invoice() As Boolean
     '    Process_Invoice = False
@@ -1569,8 +2009,12 @@ Public Class frmMeaterReading
                     If adjustmentResult Is Nothing Then
                         txtAdujstment.Text = ""
                     Else
-                        txtAdujstment.Text = adjustmentResult.ADJUSTMENT
+                        ' Handle nullable ADJUSTMENT property
+                        txtAdujstment.Text = If(adjustmentResult.ADJUSTMENT IsNot Nothing,
+                                adjustmentResult.ADJUSTMENT.ToString(),
+                                "")
                     End If
+
                     Dim agreement = multi.ReadFirstOrDefault(Of AgreementData)()
                     If agreement IsNot Nothing Then
                         PopulateAgreementDetails(agreement)
@@ -3361,56 +3805,91 @@ Public Class frmMeaterReading
     '    End Try
 
     'End Sub
-
     Private Sub GetLastInvInfo(ByRef CusID As String, ByRef AgID As String)
         Try
-            Dim isRecordHave As Boolean = False
-            strSQL = "SELECT     TOP (1) INV_PERIOD_START, INV_PERIOD_END, INV_NO, INV_DATE FROM    TBL_INVOICE_MASTER WHERE     (COM_ID ='" & globalVariables.selectedCompanyID & "') AND (CUS_ID =@CUS_ID) AND (AG_ID = @AG_ID) ORDER BY INV_DATE DESC"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(CusID))
-            dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(AgID))
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+                Dim sql = "SELECT TOP 1 INV_PERIOD_START, INV_PERIOD_END, INV_NO, INV_DATE
+                   FROM TBL_INVOICE_MASTER
+                   WHERE COM_ID = @ComID
+                     AND CUS_ID = @CusID
+                     AND AG_ID  = @AgID
+                   ORDER BY INV_DATE DESC"
 
-            While dbConnections.dReader.Read
-                isRecordHave = True
-                If IsDBNull(dbConnections.dReader.Item("INV_NO")) Then
-                    lblInvoiceNo.Text = ""
+                Dim result = dbConnections.sqlConnection.QueryFirstOrDefault(Of InvoiceInfo)(
+                    sql,
+                    New With {
+                        .ComID = globalVariables.selectedCompanyID,
+                        .CusID = CusID.Trim(),
+                        .AgID = AgID.Trim()
+                    }
+                )
+
+                If result IsNot Nothing Then
+                    lblInvoiceNo.Text = If(result.INV_NO, "")
+                    lblSDate.Text = If(result.INV_PERIOD_START, "")
+                    lblEDate.Text = If(result.INV_PERIOD_END, "")
+                    lblLInvDate.Text = If(result.INV_DATE, "")
                 Else
-                    lblInvoiceNo.Text = dbConnections.dReader.Item("INV_NO")
+                    ClearInvoiceLabels()
                 End If
-                If IsDBNull(dbConnections.dReader.Item("INV_PERIOD_START")) Then
-                    lblSDate.Text = ""
-                Else
-                    lblSDate.Text = dbConnections.dReader.Item("INV_PERIOD_START")
-                End If
-
-                If IsDBNull(dbConnections.dReader.Item("INV_PERIOD_END")) Then
-                    lblEDate.Text = ""
-                Else
-                    lblEDate.Text = dbConnections.dReader.Item("INV_PERIOD_END")
-                End If
-
-                If IsDBNull(dbConnections.dReader.Item("INV_DATE")) Then
-                    lblLInvDate.Text = ""
-                Else
-                    lblLInvDate.Text = dbConnections.dReader.Item("INV_DATE")
-                End If
-
-
-            End While
-
-            If isRecordHave = False Then
-                lblInvoiceNo.Text = ""
-                lblSDate.Text = ""
-                lblEDate.Text = ""
-                lblLInvDate.Text = ""
-            End If
-            dbConnections.dReader.Close()
+            End Using
         Catch ex As Exception
-            dbConnections.dReader.Close()
-            '/MsgBox(ex.InnerException.Message)
+            MsgBox(ex.Message)
+            ClearInvoiceLabels()
         End Try
     End Sub
+
+
+    'Private Sub GetLastInvInfo(ByRef CusID As String, ByRef AgID As String)
+    '    Try
+    '        Dim isRecordHave As Boolean = False
+    '        strSQL = "SELECT     TOP (1) INV_PERIOD_START, INV_PERIOD_END, INV_NO, INV_DATE FROM    TBL_INVOICE_MASTER WHERE     (COM_ID ='" & globalVariables.selectedCompanyID & "') AND (CUS_ID =@CUS_ID) AND (AG_ID = @AG_ID) ORDER BY INV_DATE DESC"
+    '        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@CUS_ID", Trim(CusID))
+    '        dbConnections.sqlCommand.Parameters.AddWithValue("@AG_ID", Trim(AgID))
+    '        dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+
+    '        While dbConnections.dReader.Read
+    '            isRecordHave = True
+    '            If IsDBNull(dbConnections.dReader.Item("INV_NO")) Then
+    '                lblInvoiceNo.Text = ""
+    '            Else
+    '                lblInvoiceNo.Text = dbConnections.dReader.Item("INV_NO")
+    '            End If
+    '            If IsDBNull(dbConnections.dReader.Item("INV_PERIOD_START")) Then
+    '                lblSDate.Text = ""
+    '            Else
+    '                lblSDate.Text = dbConnections.dReader.Item("INV_PERIOD_START")
+    '            End If
+
+    '            If IsDBNull(dbConnections.dReader.Item("INV_PERIOD_END")) Then
+    '                lblEDate.Text = ""
+    '            Else
+    '                lblEDate.Text = dbConnections.dReader.Item("INV_PERIOD_END")
+    '            End If
+
+    '            If IsDBNull(dbConnections.dReader.Item("INV_DATE")) Then
+    '                lblLInvDate.Text = ""
+    '            Else
+    '                lblLInvDate.Text = dbConnections.dReader.Item("INV_DATE")
+    '            End If
+
+
+    '        End While
+
+    '        If isRecordHave = False Then
+    '            lblInvoiceNo.Text = ""
+    '            lblSDate.Text = ""
+    '            lblEDate.Text = ""
+    '            lblLInvDate.Text = ""
+    '        End If
+    '        dbConnections.dReader.Close()
+    '    Catch ex As Exception
+    '        dbConnections.dReader.Close()
+    '        '/MsgBox(ex.InnerException.Message)
+    '    End Try
+    'End Sub
 
 
     Private Function GetSelectedVATP() As Double
@@ -4055,11 +4534,9 @@ Public Class frmMeaterReading
             path = ""
             reportformObj.CrystalReportViewer1.ShowPrintButton = False
             reportformObj.Show()
-
         Catch ex As Exception
             MsgBox(ex.InnerException.Message)
         Finally
-
         End Try
     End Sub
 
@@ -4183,4 +4660,81 @@ Public Class frmMeaterReading
     Private Sub txtSelectedAG_TextChanged(sender As Object, e As EventArgs) Handles txtSelectedAG.TextChanged
 
     End Sub
+
+    Private Sub ClearInvoiceLabels()
+        lblInvoiceNo.Text = ""
+        lblSDate.Text = ""
+        lblEDate.Text = ""
+        lblLInvDate.Text = ""
+    End Sub
+
+    ' DTO / Model class
+    Public Class InvoiceInfo
+        Public Property INV_NO As String
+        Public Property INV_PERIOD_START As String
+        Public Property INV_PERIOD_END As String
+        Public Property INV_DATE As String
+    End Class
+
+    ' DTO Classes
+    Public Class InvoiceMasterDto
+        Public Property COM_ID As String
+        Public Property AG_ID As String
+        Public Property CUS_ID As String
+        Public Property INV_PERIOD_START As DateTime
+        Public Property INV_PERIOD_END As DateTime
+        Public Property INV_NO As String
+        Public Property INV_DATE As DateTime
+        Public Property INV_ADD1 As String
+        Public Property INV_ADD2 As String
+        Public Property INV_ADD3 As String
+        Public Property BILLING_METHOD As String
+        Public Property INV_STATUS As String
+        Public Property VAT_TYPE As String
+        Public Property INV_PRINTED As Boolean
+        Public Property INV_BY As String
+        Public Property INV_BY_NAME As String
+        Public Property INV_HEADDING As String
+        Public Property IS_NBT As Integer
+        Public Property IS_VAT As Integer
+        Public Property RENTAL_VAL As Object   ' Nullable Double
+        Public Property INV_VAL As Double
+        Public Property REP_CODE As String
+        Public Property ADJUSTMENT As Object   ' Nullable Double
+        Public Property VAT_P As Double
+        Public Property NBT2_P As Double
+    End Class
+
+    Public Class InvoiceDetailDto
+        Public Property COM_ID As String
+        Public Property AG_ID As String
+        Public Property CUS_ID As String
+        Public Property PERIOD_START As DateTime
+        Public Property PERIOD_END As DateTime
+        Public Property SERIAL_NO As String
+        Public Property INV_NO As String
+        Public Property MAKE_MODEL As String
+        Public Property INV_ADD1 As String
+        Public Property INV_ADD2 As String
+        Public Property INV_ADD3 As String
+        Public Property BILLING_METHOD As String
+        Public Property M_LOC As String
+        Public Property START_MR As Object
+        Public Property END_MR As Object
+        Public Property INV_COPIES As Object
+        Public Property WAISTAGE As Double
+        Public Property P_NO As Object
+    End Class
+
+    Public Class BwCommitmentDto
+        Public Property INV_NO As String
+        Public Property COM_ID As String
+        Public Property CUS_ID As String
+        Public Property AG_CODE As String
+        Public Property BW_RANGE_1 As Object
+        Public Property BW_RANGE_2 As Object
+        Public Property BW_RATE As Object
+        Public Property BW_COPY_BREAKUP As Object  ' Nullable
+    End Class
 End Class
+
