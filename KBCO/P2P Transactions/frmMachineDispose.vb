@@ -245,7 +245,7 @@ Public Class MachineReturnNew
     Public Property AG_ID As String
     Public Property MACHINE_PN As String
     Public Property P_NO As String
-    Public Property IS_SPECIAL_CASE As Boolean
+    Public Property IS_SPECIAL_CASE As String
     Public Property SPECIAL_CASE_DESC As String
     Public Property M_LOC1 As String
     Public Property M_LOC2 As String

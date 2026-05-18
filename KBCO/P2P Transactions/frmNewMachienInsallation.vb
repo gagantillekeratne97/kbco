@@ -85,12 +85,11 @@ Public Class frmNewMachienInsallation
                 'Removing Return machine from Machine Returns 
                 Using connection As New SqlConnection(connectionString)
                     connection.Open()
-
                     If returnID IsNot Nothing Then
                         Dim sql As String = "
                         DELETE FROM TBL_MACHINE_RETURN_NEW 
-                        WHERE ID = @returnID AND COM_ID = @companyID"
-                        Dim result = connection.Execute(sql, New With {.returnID = returnID, .companyID = selectedCompanyID})
+                        WHERE SERIAL_NO = @serialNo AND COM_ID = @companyID"
+                        Dim result = connection.Execute(sql, New With {.serialNo = txtSerialNo.Text, .companyID = selectedCompanyID})
                     End If
                 End Using
 
@@ -1368,8 +1367,6 @@ Public Class frmNewMachienInsallation
             IsErrorHave = True
         End If
 
-
-
         If rbtnInvStatusAll.Checked = False And rbtnInvStatusIndividual.Checked = False Then
             ErrorProvider1.SetError(rbtnInvStatusAll, "Please select the required option.")
             'ErrorProvider1.SetError(rbtnInvStatusIndividual, "Please select the required option.")
@@ -1387,7 +1384,7 @@ Public Class frmNewMachienInsallation
             IsErrorHave = True
         End If
 
-        If generalValObj.isPresent(txtRepCode) = False Then
+        If generalValObj.isPresent(txtRepCode) = False Or String.IsNullOrWhiteSpace(txtRepCode.Text) Then
             IsErrorHave = True
         End If
 

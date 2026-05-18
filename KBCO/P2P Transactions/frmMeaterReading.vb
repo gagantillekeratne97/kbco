@@ -126,7 +126,7 @@ Public Class frmMeaterReading
                                     @IS_NBT, @IS_VAT, @RENTAL_VAL, @ADJUSTMENT);
                     "
 
-                        connection.Execute(masterSql, New With {
+                        Dim result = connection.Execute(masterSql, New With {
                             .COM_ID = globalVariables.selectedCompanyID,
                             .MR_ID = mrId,
                             .CUS_ID = txtCustomerID.Text.Trim(),
@@ -782,6 +782,13 @@ Public Class frmMeaterReading
         If String.IsNullOrEmpty(invoiceNo) Then Return False
 
         Dim billingMethod As String = GetBillingMethod()
+
+        '//Changes done 
+        '// Removed the Dim invDate As DateTime = dtpInvoiceDate.Value.Date to Dim invDate As DateTime = dtpInvoiceDate.Value
+        '// Invoice date issue time is fixed.
+
+        Dim invDate As DateTime = dtpInvoiceDate.Value
+
         Dim invStatus As String = GetInvoiceStatus()
         Dim rental As Double = If(String.IsNullOrWhiteSpace(txtRental.Text), 0, CDbl(txtRental.Text.Trim()))
         Dim adjustment As Double = If(String.IsNullOrWhiteSpace(txtAdujstment.Text), 0, CDbl(txtAdujstment.Text.Trim()))
@@ -815,14 +822,13 @@ Public Class frmMeaterReading
                 Dim isDuplicate = dbConnections.sqlConnection.ExecuteScalar(Of Boolean)(
                 dupSql, dupParam, tran)
 
+                ' ── 2. Build master DTO ─────────────────────────────────────────
+
                 If isDuplicate Then
                     MessageBox.Show("Invoice already processed.", "Invalid attempt.",
                                 MessageBoxButtons.OK, MessageBoxIcon.Stop)
                     Return False
                 End If
-
-                ' ── 2. Build master DTO ─────────────────────────────────────────
-                Dim invDate As DateTime = dtpInvoiceDate.Value.Date.Add(Today.TimeOfDay)
 
                 Dim master As New InvoiceMasterDto With {
                 .COM_ID = globalVariables.selectedCompanyID,
@@ -1526,24 +1532,61 @@ Public Class frmMeaterReading
         cmbSearchCol.SelectedIndex = 0
     End Sub
 
+    Private Function GetConnection() As SqlConnection
+        Dim conn As New SqlConnection(connectionString)
+
+        If conn.State = ConnectionState.Closed Then
+            conn.Open()
+        End If
+
+        Return conn
+    End Function
+
     Private Sub frmMeaterReading_Activated(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Activated
         globalFunctions.globalButtonActivation(btnStatus(0), btnStatus(1), btnStatus(2), btnStatus(3), btnStatus(4), btnStatus(5))
-        errorEvent = " read user permission"
-        Try
-            connectionStaet()
-            strSQL = "SELECT USERDET_MENURIGHT FROM TBLU_USERDET WHERE USERDET_USERCODE='" & globalVariables.userSession & "' AND USERDET_MENUTAG='" & Me.Tag & "'AND USERDET_MENUTAG='" & Me.Tag & "' AND COM_ID ='" & globalVariables.selectedCompanyID & "'"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, sqlConnection)
-            Dim rights As String = Trim(dbConnections.sqlCommand.ExecuteScalar)
-            If InStr(1, rights, "C") Then canCreate = True
-            If InStr(1, rights, "D") Then canDelete = True
-            If InStr(1, rights, "M") Then canModify = True
-        Catch ex As Exception
-            inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-            MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3) " + PermissionReadingErrorMessgae, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-        Finally
-            connectionClose()
-        End Try
 
+        errorEvent = " read user permission"
+
+        Try
+            Using conn As SqlConnection = GetConnection()
+                Dim sql As String =
+                    "SELECT USERDET_MENURIGHT
+                    FROM TBLU_USERDET 
+                    WHERE USERDET_USERCODE = @UserCode
+                    AND USERDET_MENUTAG = @MenuTag
+                    AND COM_ID = @ComId"
+
+                Dim rights As String = conn.QueryFirstOrDefault(Of String)(
+                    sql, New With {
+                        .UserCode = globalVariables.userSession,
+                        .MenuTag = Me.Tag,
+                        .ComId = globalVariables.selectedCompanyID
+                    })
+
+                If Not String.IsNullOrEmpty(rights) Then
+                    rights = rights.Trim()
+
+                    If rights.Contains("C") Then canCreate = True
+                    If rights.Contains("D") Then canDelete = True
+                    If rights.Contains("M") Then canModify = True
+                End If
+
+            End Using
+        Catch ex As Exception
+            inputErrorLog(Me.Text,
+                   globalVariables.selectedCompanyID & "-" & Me.Tag & "X3",
+                   errorEvent,
+                   userSession,
+                   userName,
+                   DateTime.Now,
+                   ex.Message)
+
+            MessageBox.Show("Error code(" & globalVariables.selectedCompanyID & "-" & Me.Tag & "X3) " &
+                            PermissionReadingErrorMessgae,
+                            "Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning)
+        End Try
     End Sub
     '===================================================================================================================
     '''''''''''''''''''''''''''''''''''all functions of the form .......................................................
@@ -3144,7 +3187,7 @@ Public Class frmMeaterReading
             strSQL = "
             SELECT BW_RANGE_1 AS Range1, BW_RANGE_2 AS Range2, BW_RATE AS BWRate
             FROM TBL_AG_BW_COMMITMENT 
-            WHERE (COM_ID = @COM_ID) AND (CUS_ID = @CUS_ID) AND (AG_CODE = @AG_CODE)"
+            WHERE (COM_ID = @COM_ID) AND (CUS_ID = @CUS_ID) AND (AG_CODE = @AG_CODE) ORDER BY BW_RANGE_2"
             Using connection As New SqlConnection(connectionString)
                 connection.Open()
                 Dim result = connection.Query(Of CommitmentVM)(strSQL, New With {
@@ -3651,63 +3694,63 @@ Public Class frmMeaterReading
         txtVAT.Text = VATVal.ToString("N2")
         txtNetValue.Text = NetValue.ToString("N2")
     End Sub
+
     Private Sub IsInvoiced()
         Try
             Dim RM As New Resources.ResourceManager("KBCO.Resources", System.Reflection.Assembly.GetExecutingAssembly)
             Dim startDate As String = dtpStart.Value.ToString("yyyy/MM/dd")
             Dim endDate As String = dtpEnd.Value.ToString("yyyy/MM/dd")
 
-            ' Step 1: Fetch all invoice master records
-            Dim invoiceData As New Dictionary(Of String, Boolean) ' AG_ID -> INV_PRINTED
-            Dim strSQL As String = "SELECT AG_ID, INV_PRINTED FROM TBL_INVOICE_MASTER " &
-                               "WHERE INV_PERIOD_START = @StartDate AND INV_PERIOD_END = @EndDate"
-            Using cmd As New SqlCommand(strSQL, dbConnections.sqlConnection)
-                cmd.Parameters.AddWithValue("@StartDate", startDate)
-                cmd.Parameters.AddWithValue("@EndDate", endDate)
+            ' Single optimized query using LEFT JOINs to fetch both datasets at once
+            Dim strSQL As String =
+            "SELECT ag.AG_ID,
+                    im.INV_PRINTED,
+                    CASE WHEN mrm.AG_ID IS NOT NULL THEN 1 ELSE 0 END AS HAS_METER_READING
+             FROM (SELECT DISTINCT AG_ID FROM TBL_INVOICE_MASTER
+                   WHERE INV_PERIOD_START = @StartDate AND INV_PERIOD_END = @EndDate
+                   UNION
+                   SELECT DISTINCT AG_ID FROM TBL_METER_READING_MASTER
+                   WHERE PERIOD_START = @StartDate AND PERIOD_END = @EndDate) ag
+             LEFT JOIN TBL_INVOICE_MASTER im
+                    ON ag.AG_ID = im.AG_ID
+                   AND im.INV_PERIOD_START = @StartDate
+                   AND im.INV_PERIOD_END = @EndDate
+             LEFT JOIN TBL_METER_READING_MASTER mrm
+                    ON ag.AG_ID = mrm.AG_ID
+                   AND mrm.PERIOD_START = @StartDate
+                   AND mrm.PERIOD_END = @EndDate"
 
-                Using rdr = cmd.ExecuteReader()
-                    While rdr.Read()
-                        Dim agId = rdr("AG_ID").ToString()
-                        Dim isPrinted = Not IsDBNull(rdr("INV_PRINTED")) AndAlso Convert.ToBoolean(rdr("INV_PRINTED"))
-                        If Not invoiceData.ContainsKey(agId) Then
-                            invoiceData.Add(agId, isPrinted)
-                        End If
-                    End While
-                End Using
+            ' Fetch all results in one round-trip using Dapper
+            Dim params = New With {.StartDate = startDate, .EndDate = endDate}
+            Dim results As IEnumerable(Of InvoiceStatusDto)
+
+            Using conn = New SqlConnection(connectionString)
+                results = conn.Query(Of InvoiceStatusDto)(strSQL, params)
             End Using
 
-            ' Step 2: Fetch all meter reading master records
-            Dim meterData As New HashSet(Of String) ' AG_IDs that have meter readings
-            strSQL = "SELECT AG_ID FROM TBL_METER_READING_MASTER " &
-                 "WHERE PERIOD_START = @StartDate AND PERIOD_END = @EndDate"
-            Using cmd As New SqlCommand(strSQL, dbConnections.sqlConnection)
-                cmd.Parameters.AddWithValue("@StartDate", startDate)
-                cmd.Parameters.AddWithValue("@EndDate", endDate)
+            ' Build a lookup dictionary from Dapper results: AG_ID -> status string
+            Dim statusMap = results.ToDictionary(
+            Function(r) r.AG_ID,
+            Function(r)
+                If r.INV_PRINTED IsNot Nothing Then
+                    Return If(r.INV_PRINTED, "PRINTED", "INVOICED")
+                ElseIf r.HAS_METER_READING = 1 Then
+                    Return "SAVED"
+                Else
+                    Return "NOT SAVED"
+                End If
+            End Function)
 
-                Using rdr = cmd.ExecuteReader()
-                    While rdr.Read()
-                        Dim agId = rdr("AG_ID").ToString()
-                        If Not meterData.Contains(agId) Then
-                            meterData.Add(agId)
-                        End If
-                    End While
-                End Using
-            End Using
-
-            ' Step 3: Apply logic row-by-row
+            ' Apply image to each DataGridView row
             For Each row As DataGridViewRow In dgAgreement.Rows
                 Dim agId = row.Cells(0).Value?.ToString()
                 If String.IsNullOrEmpty(agId) Then Continue For
 
                 Dim status As String = "NOT SAVED"
-
-                If invoiceData.ContainsKey(agId) Then
-                    status = If(invoiceData(agId), "PRINTED", "INVOICED")
-                ElseIf meterData.Contains(agId) Then
-                    status = "SAVED"
+                If statusMap.ContainsKey(agId) Then
+                    status = statusMap(agId)
                 End If
 
-                ' Step 4: Set image based on status
                 Select Case status
                     Case "PRINTED"
                         row.Cells(2).Value = RM.GetObject("B1")
@@ -3719,10 +3762,91 @@ Public Class frmMeaterReading
                         row.Cells(2).Value = RM.GetObject("C1")
                 End Select
             Next
+
         Catch ex As Exception
             MsgBox(ex.Message)
         End Try
     End Sub
+
+    ' DTO used by Dapper to map query results
+    Public Class InvoiceStatusDto
+        Public Property AG_ID As String
+        Public Property INV_PRINTED As Boolean?
+        Public Property HAS_METER_READING As Integer
+    End Class
+
+    'Private Sub IsInvoiced()
+    '    Try
+    '        Dim RM As New Resources.ResourceManager("KBCO.Resources", System.Reflection.Assembly.GetExecutingAssembly)
+    '        Dim startDate As String = dtpStart.Value.ToString("yyyy/MM/dd")
+    '        Dim endDate As String = dtpEnd.Value.ToString("yyyy/MM/dd")
+
+    '        ' Step 1: Fetch all invoice master records
+    '        Dim invoiceData As New Dictionary(Of String, Boolean) ' AG_ID -> INV_PRINTED
+    '        Dim strSQL As String = "SELECT AG_ID, INV_PRINTED FROM TBL_INVOICE_MASTER " &
+    '                           "WHERE INV_PERIOD_START = @StartDate AND INV_PERIOD_END = @EndDate"
+    '        Using cmd As New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            cmd.Parameters.AddWithValue("@StartDate", startDate)
+    '            cmd.Parameters.AddWithValue("@EndDate", endDate)
+
+    '            Using rdr = cmd.ExecuteReader()
+    '                While rdr.Read()
+    '                    Dim agId = rdr("AG_ID").ToString()
+    '                    Dim isPrinted = Not IsDBNull(rdr("INV_PRINTED")) AndAlso Convert.ToBoolean(rdr("INV_PRINTED"))
+    '                    If Not invoiceData.ContainsKey(agId) Then
+    '                        invoiceData.Add(agId, isPrinted)
+    '                    End If
+    '                End While
+    '            End Using
+    '        End Using
+
+    '        ' Step 2: Fetch all meter reading master records
+    '        Dim meterData As New HashSet(Of String) ' AG_IDs that have meter readings
+    '        strSQL = "SELECT AG_ID FROM TBL_METER_READING_MASTER " &
+    '             "WHERE PERIOD_START = @StartDate AND PERIOD_END = @EndDate"
+    '        Using cmd As New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '            cmd.Parameters.AddWithValue("@StartDate", startDate)
+    '            cmd.Parameters.AddWithValue("@EndDate", endDate)
+
+    '            Using rdr = cmd.ExecuteReader()
+    '                While rdr.Read()
+    '                    Dim agId = rdr("AG_ID").ToString()
+    '                    If Not meterData.Contains(agId) Then
+    '                        meterData.Add(agId)
+    '                    End If
+    '                End While
+    '            End Using
+    '        End Using
+
+    '        ' Step 3: Apply logic row-by-row
+    '        For Each row As DataGridViewRow In dgAgreement.Rows
+    '            Dim agId = row.Cells(0).Value?.ToString()
+    '            If String.IsNullOrEmpty(agId) Then Continue For
+
+    '            Dim status As String = "NOT SAVED"
+
+    '            If invoiceData.ContainsKey(agId) Then
+    '                status = If(invoiceData(agId), "PRINTED", "INVOICED")
+    '            ElseIf meterData.Contains(agId) Then
+    '                status = "SAVED"
+    '            End If
+
+    '            ' Step 4: Set image based on status
+    '            Select Case status
+    '                Case "PRINTED"
+    '                    row.Cells(2).Value = RM.GetObject("B1")
+    '                Case "INVOICED"
+    '                    row.Cells(2).Value = RM.GetObject("O1")
+    '                Case "SAVED"
+    '                    row.Cells(2).Value = RM.GetObject("B2")
+    '                Case Else
+    '                    row.Cells(2).Value = RM.GetObject("C1")
+    '            End Select
+    '        Next
+    '    Catch ex As Exception
+    '        MsgBox(ex.Message)
+    '    End Try
+    'End Sub
 
 
     'Private Sub IsInvoiced()
@@ -3927,14 +4051,32 @@ Public Class frmMeaterReading
 
         ErrorProvider1.Clear()
 
+        Using connection As New SqlConnection(connectionString)
+            connection.Open()
+            strSQL = "SELECT CASE WHEN EXISTS
+            (SELECT COM_ID FROM TBL_INVOICE_MASTER WHERE (COM_ID = @companyid) AND (AG_ID = @agreementID)
+            AND (CUS_ID = @customerID) AND (INV_PERIOD_START = @periodStart) AND (INV_PERIOD_END = @periodEnd)
+            AND (INV_STATUS_T <> 'CANCELLED')) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
 
+            Dim result As Boolean = connection.Query(Of Boolean)(strSQL, New With {
+                .companyid = globalVariables.selectedCompanyID,
+                .agreementID = Trim(txtSelectedAG.Text),
+                .customerID = Trim(txtCustomerID.Text),
+                .periodStart = dtpStart.Value.ToString("yyyy/MM/dd"),
+                .periodEnd = dtpEnd.Value.ToString("yyyy/MM/dd")
+            }).SingleOrDefault()
 
-        strSQL = "SELECT CASE WHEN EXISTS (SELECT     COM_ID FROM         TBL_INVOICE_MASTER WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (INV_PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (INV_PERIOD_END =  '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "') AND (INV_STATUS_T <> 'CANCELLED')) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
-        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
-        If dbConnections.sqlCommand.ExecuteScalar Then
-            MessageBox.Show("You don't have privilege to preform this action after processed.", "Already Processed.", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            Exit Function
-        End If
+            If result Then
+
+            End If
+        End Using
+
+        'strSQL = "SELECT CASE WHEN EXISTS (SELECT     COM_ID FROM         TBL_INVOICE_MASTER WHERE     (COM_ID = '" & globalVariables.selectedCompanyID & "') AND (AG_ID = '" & Trim(txtSelectedAG.Text) & "') AND (CUS_ID = '" & Trim(txtCustomerID.Text) & "') AND (INV_PERIOD_START = '" & dtpStart.Value.ToString("yyyy/MM/dd") & "') AND (INV_PERIOD_END =  '" & dtpEnd.Value.ToString("yyyy/MM/dd") & "') AND (INV_STATUS_T <> 'CANCELLED')) THEN CAST (1 AS BIT) ELSE CAST (0 AS BIT) END"
+        'dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection, dbConnections.sqlTransaction)
+        'If dbConnections.sqlCommand.ExecuteScalar Then
+        '    MessageBox.Show("You don't have privilege to preform this action after processed.", "Already Processed.", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+        '    Exit Function
+        'End If
 
 
 
@@ -4086,45 +4228,75 @@ Public Class frmMeaterReading
             AND MTBL_CUSTOMER_MASTER.VAT_TYPE_ID = MTBL_VAT_MASTER.VAT_TYPE_ID 
             WHERE 
             (MTBL_CUSTOMER_MASTER.COM_ID = @COM_ID) AND (MTBL_CUSTOMER_MASTER.CUS_ID = @CUS_ID)"
-            Dim customerResult As CustomerInformation = dbConnections.sqlConnection.QuerySingleOrDefault(Of CustomerInformation)(strSQL, New With {.COM_ID = globalVariables.selectedCompanyID, .CUS_ID = Trim(txtCustomerID.Text)})
-            txtCustomerName.Text = customerResult.CUS_NAME
-            lblVatType.Text = customerResult.VAT_TYPE_ID
-            lblVatTypeName.Text = customerResult.VAT_DESC
-            If IsDBNull(customerResult.IS_NBT) Then
-                cbNBT.Checked = False
-            Else
+
+            Dim customerResult As CustomerInformation =
+            dbConnections.sqlConnection.QuerySingleOrDefault(Of CustomerInformation)(
+                strSQL,
+                New With {
+                    .COM_ID = globalVariables.selectedCompanyID,
+                    .CUS_ID = Trim(txtCustomerID.Text)
+                })
+
+            If customerResult IsNot Nothing Then
+
+                txtCustomerName.Text = If(customerResult.CUS_NAME, "")
+                lblVatType.Text = If(customerResult.VAT_TYPE_ID, "")
+                lblVatTypeName.Text = If(customerResult.VAT_DESC, "")
+
                 If customerResult.IS_NBT Then
-                    cbNBT.Checked = True
+                    cbNBT.Checked = customerResult.IS_NBT
                 Else
                     cbNBT.Checked = False
                 End If
-            End If
 
-            If IsDBNull(customerResult.IS_VAT) Then
-                cbVAT.Checked = False
-            Else
-                If customerResult.IS_VAT Then
-                    cbVAT.Checked = True
+                txtCustomerName.Text = customerResult.CUS_NAME.ToString()
+                lblVatType.Text = customerResult.VAT_TYPE_ID
+                lblVatTypeName.Text = customerResult.VAT_DESC
+                If IsDBNull(customerResult.IS_NBT) Then
+                    cbNBT.Checked = False
                 Else
+                    If customerResult.IS_NBT Then
+                        cbNBT.Checked = True
+                    Else
+                        cbNBT.Checked = False
+                    End If
+                End If
+
+                If IsDBNull(customerResult.IS_VAT) Then
                     cbVAT.Checked = False
-                End If
-            End If
-            dgAgreement.Rows.Clear()
-            strSQL = "SELECT AG_ID,AG_NAME FROM TBL_CUS_AGREEMENT WHERE (COM_ID = @COM_ID) AND (CUS_CODE =@CUS_CODE) and (MACHINE_TYPE = 'BW')"
-            Dim agreementLists As List(Of AgreementInformationVM) = dbConnections.sqlConnection.Query(Of AgreementInformationVM)(strSQL, New With {.COM_ID = globalVariables.selectedCompanyID, .CUS_CODE = Trim(txtCustomerID.Text)})
-            Dim hasRecord As Boolean = False
-            Dim AgreementName As String
-
-            For Each item As AgreementInformationVM In agreementLists
-                hasRecord = True
-                If IsDBNull(item.AG_NAME) Then
-                    AgreementName = item.AG_ID
                 Else
-                    AgreementName = item.AG_NAME
+                    If customerResult.IS_VAT Then
+                        cbVAT.Checked = True
+                    Else
+                        cbVAT.Checked = False
+                    End If
                 End If
-                populatreDatagrAgreements(item.AG_ID, AgreementName, Nothing)
-                IsInvoiced()
-            Next
+                dgAgreement.Rows.Clear()
+                strSQL = "SELECT AG_ID,AG_NAME FROM TBL_CUS_AGREEMENT WHERE (COM_ID = @COM_ID) AND (CUS_CODE =@CUS_CODE) and (MACHINE_TYPE = 'BW')"
+                Dim agreementLists As List(Of AgreementInformationVM) = dbConnections.sqlConnection.Query(Of AgreementInformationVM)(strSQL, New With {.COM_ID = globalVariables.selectedCompanyID, .CUS_CODE = Trim(txtCustomerID.Text)})
+                Dim hasRecord As Boolean = False
+                Dim AgreementName As String
+
+                For Each item As AgreementInformationVM In agreementLists
+                    hasRecord = True
+                    If IsDBNull(item.AG_NAME) Then
+                        AgreementName = item.AG_ID
+                    Else
+                        AgreementName = item.AG_NAME
+                    End If
+                    populatreDatagrAgreements(item.AG_ID, AgreementName, Nothing)
+                    '//Remember to uncomment after fixing the issue for the invoice date 
+                    'IsInvoiced()
+                Next
+            Else
+                ' Handle no data found
+                txtCustomerName.Text = ""
+                lblVatType.Text = ""
+                lblVatTypeName.Text = ""
+                cbNBT.Checked = False
+
+                MessageBox.Show("Customer not found", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            End If
         Catch ex As Exception
             MessageBox.Show(ex.Message)
         End Try
@@ -4295,8 +4467,10 @@ Public Class frmMeaterReading
 
     Private Async Sub dgAgreement_CellClick(sender As Object, e As DataGridViewCellEventArgs) Handles dgAgreement.CellClick
         Try
+            Me.Enabled = False
             txtSelectedAG.Text = dgAgreement.Item(0, e.RowIndex).Value
             Await LoadSelectedAgreementOptimizedAsync()
+            Me.Enabled = True
         Catch ex As Exception
             MessageBox.Show(ex.Message)
         End Try
@@ -4461,7 +4635,6 @@ Public Class frmMeaterReading
         End If
         CalculateInvoiceValue()
     End Sub
-
 
     Private Sub btnPrint_Click(sender As Object, e As EventArgs) Handles btnPrint.Click
         frmPrintInvoice.Text = Trim(txtInvoiceNo.Text)
@@ -4736,5 +4909,13 @@ Public Class frmMeaterReading
         Public Property BW_RATE As Object
         Public Property BW_COPY_BREAKUP As Object  ' Nullable
     End Class
+
+    Private Sub btnUploadExcel_Click(sender As Object, e As EventArgs) Handles btnUploadExcel.Click
+        Try
+
+        Catch ex As Exception
+            MsgBox(ex.Message)
+        End Try
+    End Sub
 End Class
 

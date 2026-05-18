@@ -17,7 +17,22 @@
     '//Changes made on 16/07/2025 
     '//Changes made by Gagan Tillekeratne
     '//Fixing of Monthly Revenue report 
-    Public KBridgeVersion As String = " 4.2.4 "
+
+    '// kbco version = 4.2.5
+    Public KBridgeVersion As String = " 4.2.7 "
+
+    '// kbco version = 4.2.7.1 
+    '// Changed done by Gagan on 06-05-2026
+
+    '//Fixed the internal printing issue -> 
+    '//changed the refering textbox name txtViewInternalNo 
+    '//add the irstate -> PENDING DISPATCH 
+    '//Adding force update feature.
+
+    '//KBCO Version = 4.2.6
+    '//Fixing of Kbco version -> 
+    '//fixing of the new machines removing from actual return machine Report 
+    '//Grid adding convert to dapper in Internal Dispatch Queue lists when loading 
 
     'Public KBridgeVersion As String = " 4.1.1 "
     '//Receipt Function Fixed

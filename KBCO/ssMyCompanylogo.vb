@@ -27,21 +27,27 @@ Public NotInheritable Class ssMyCompanylogo
 
         ElseIf ProgressBar1.Value <= 40 Then
             Label1.Text = "Checking for Updates ....."
-            If CheckSoftwareUpdates() Then
-                If SaveSoftwareUpdate() Then
-                    Label1.Text = "Backup last KBCO version ....."
-                    BackupOldExe()
-                    Label1.Text = "Starting Update ....."
-
-
-                    frmLoginWinForm.Dispose()
-                    Label1.Text = "KBCO update module opening ....."
-                    Process.Start(My.Application.Info.DirectoryPath + "\KBSoftwareUpdate.exe")
-
-                End If
+            If CheckForUpdates() Then
+                Label1.Text = "Starting Update ......"
+                UpdateSystem()
             Else
                 Label1.Text = "No New Updates ....."
             End If
+            'If CheckSoftwareUpdates() Then
+            '    If SaveSoftwareUpdate() Then
+            '        Label1.Text = "Backup last KBCO version ....."
+            '        BackupOldExe()
+            '        Label1.Text = "Starting Update ....."
+
+
+            '        frmLoginWinForm.Dispose()
+            '        Label1.Text = "KBCO update module opening ....."
+            '        Process.Start(My.Application.Info.DirectoryPath + "\KBSoftwareUpdate.exe")
+
+            '    End If
+            'Else
+            '    Label1.Text = "No New Updates ....."
+            'End If
 
         ElseIf ProgressBar1.Value <= 50 Then
 
@@ -77,6 +83,55 @@ Public NotInheritable Class ssMyCompanylogo
             FileCopy(My.Application.Info.DirectoryPath + "\KBCO.exe", My.Application.Info.DirectoryPath + "\LastBackup\KBCO.exe")
         Catch ex As Exception
             'MsgBox(ex.Message)
+        End Try
+    End Sub
+
+    Private Sub UpdateSystem()
+        Try
+            Using client As New System.Net.WebClient()
+                Dim zipUrl As String = "https://raw.githubusercontent.com/gagantillekeratne97/kbco-update/main/Releases/update_1.6.zip?nocache=" & DateTime.Now.Ticks.ToString()
+                Dim installPath As String = Application.StartupPath
+                Process.Start("KBSoftwareUpdate.exe", """" & zipUrl & """ """ & installPath & """")
+                Application.Exit()
+            End Using
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+        End Try
+    End Sub
+
+    Private Function CheckForUpdates() As Boolean
+        Try
+            Dim currentVersion = globalVariables.KBridgeVersion.Trim()
+            Dim versionUrl As String = "https://raw.githubusercontent.com/gagantillekeratne97/kbco-update/main/version.txt?nocache=" & DateTime.Now.Ticks.ToString()
+            Using client As New System.Net.WebClient()
+                Dim latestVersion As String = client.DownloadString(versionUrl).Trim()
+                If latestVersion <> currentVersion Then
+                    Return True
+                Else
+                    Return False
+                End If
+            End Using
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
+            Return False
+        End Try
+    End Function
+
+    Private Sub CheckForUpdates01()
+        Try
+            Dim currentVersion = globalVariables.KBridgeVersion.Trim()
+            Dim versionUrl As String = "https://raw.githubusercontent.com/gagantillekeratne97/kbco-update/main/version.txt?nocache=" & DateTime.Now.Ticks.ToString()
+            Using client As New System.Net.WebClient()
+                Dim latestVersion As String = client.DownloadString(versionUrl).Trim()
+                If latestVersion <> currentVersion Then
+                    Dim zipUrl As String = "https://raw.githubusercontent.com/gagantillekeratne97/kbco-update/main/Releases/update_1.6.zip?nocache=" & DateTime.Now.Ticks.ToString()
+                    Dim installPath As String = Application.StartupPath
+                    Process.Start("KBSoftwareUpdate.exe", """" & zipUrl & """ """ & installPath & """")
+                    Application.Exit()
+                End If
+            End Using
+        Catch ex As Exception
+            MessageBox.Show(ex.Message)
         End Try
     End Sub
 

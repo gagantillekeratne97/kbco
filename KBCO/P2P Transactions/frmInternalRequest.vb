@@ -279,16 +279,10 @@ Public Class frmInternalRequest
     End Sub
 
     Private Sub frmInternalRequest_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles Me.Load
-
-
         FormClear()
         bgWorkerStarup.RunWorkerAsync()
         'globalVariables.DefaultPrinterName = globalFunctions.GetDefaultPrinter()
         'cmbPrinterList.Text = globalVariables.DefaultPrinterName
-
-
-
-
     End Sub
 
     Private Sub frmInternalRequest_Activated(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Activated
@@ -371,7 +365,7 @@ Public Class frmInternalRequest
                 Dim result = conn.ExecuteScalar(Of Boolean)(
                 SQL,
                 New With {
-                    .IR_NO = txtIRNo.Text?.Trim(),
+                    .IR_NO = txtViewInternalNo.Text?.Trim(),
                     .COM_ID = globalVariables.selectedCompanyID
                 }
             )
@@ -503,7 +497,9 @@ Public Class frmInternalRequest
                 Dim result = connection.Execute(updateQuery, New With {
                     .companyid = companyId,
                     .irno = txtIRNo.Text.Trim(),
-                    .irprinted = True})
+                    .irprinted = True,
+                    .irstate = "PENDING DISPATCH"
+                    })
 
                 If result > 0 Then
                     MessageBox.Show("Internal Print Successful.", "Printed.", MessageBoxButtons.OK, MessageBoxIcon.Information)
@@ -687,45 +683,95 @@ Public Class frmInternalRequest
             Using connection As New SqlConnection(connectionString)
                 connection.Open()
                 Dim companyID As String = globalVariables.selectedCompanyID
-                Dim sql As String = "
-                SELECT TOP 1 IR_NO 
-                FROM TBL_INTERNAL_MAIN 
-                WHERE COM_ID = @companyID
-                ORDER BY IR_DATE DESC"
 
-                Dim lastIRNo As String = connection.QueryFirstOrDefault(Of String)(
-                    sql, New With {.companyID = companyID})
+                ' Acquire exclusive lock per company
+                Dim lockResult As Integer = connection.QueryFirstOrDefault(Of Integer)(
+                "EXEC sp_getapplock 
+                    @Resource = @LockName, 
+                    @LockMode = 'Exclusive', 
+                    @LockOwner = 'Session',
+                    @LockTimeout = 5000",
+                New With {.LockName = "IRNoGen_" & companyID})
 
-                Dim nextID As Integer = 1
-                If Not String.IsNullOrEmpty(lastIRNo) Then
-                    Dim parts() As String = lastIRNo.Split("/")
-                    If parts.Length >= 3 Then
-                        Integer.TryParse(parts(2), nextID)
-                    End If
+                If lockResult < 0 Then
+                    MessageBox.Show("Could not acquire lock to generate IR number. Please try again.")
+                    'Throw New Exception("Could not acquire lock to generate IR number. Please try again.")
                 End If
 
-                Dim existingIDs As IEnumerable(Of Integer) =
-                    connection.Query(Of Integer)(
-                    "SELECT CAST(PARSENAME(REPLACE(IR_NO, '/', '.'), 1) AS INT)
-                     FROM TBL_INTERNAL_MAIN
-                     WHERE COM_ID = @CompanyID
-                     AND IR_NO LIKE @Pattern", New With {
-                     .CompanyID = companyID,
-                     .Pattern = companyID & "/IR/%"
-                     })
+                Try
+                    ' Get the actual max IR number (not SEQ based)
+                    Dim sql As String = "
+                    SELECT ISNULL(MAX(CAST(PARSENAME(REPLACE(IR_NO, '/', '.'), 1) AS INT)), 0)
+                    FROM TBL_INTERNAL_MAIN 
+                    WHERE COM_ID = @CompanyID
+                    AND IR_NO LIKE @Pattern"
 
-                Dim usedIDSet As New HashSet(Of Integer)(existingIDs)
+                    Dim maxID As Integer = connection.QueryFirstOrDefault(Of Integer)(
+                        sql, New With {
+                            .CompanyID = companyID,
+                            .Pattern = companyID & "/IR/%"
+                        })
 
-                While usedIDSet.Contains(nextID)
-                    nextID += 1
-                End While
+                    Dim nextID As Integer = maxID + 1
+                    Return $"{companyID}/IR/{nextID}"
 
-                Return $"{companyID}/IR/{nextID}"
+                Finally
+                    connection.Execute(
+                        "EXEC sp_releaseapplock 
+                        @Resource = @LockName, 
+                        @LockOwner = 'Session'",
+                        New With {.LockName = "IRNoGen_" & companyID})
+                End Try
             End Using
         Catch ex As Exception
             MsgBox(ex.Message)
         End Try
     End Function
+
+    'Private Function GenerateIRNo() As String
+    '    Try
+    '        Using connection As New SqlConnection(connectionString)
+    '            connection.Open()
+    '            Dim companyID As String = globalVariables.selectedCompanyID
+    '            Dim sql As String = "
+    '            SELECT TOP 1 IR_NO 
+    '            FROM TBL_INTERNAL_MAIN 
+    '            WHERE COM_ID = @companyID
+    '            ORDER BY IR_DATE DESC"
+
+    '            Dim lastIRNo As String = connection.QueryFirstOrDefault(Of String)(
+    '                sql, New With {.companyID = companyID})
+
+    '            Dim nextID As Integer = 1
+    '            If Not String.IsNullOrEmpty(lastIRNo) Then
+    '                Dim parts() As String = lastIRNo.Split("/")
+    '                If parts.Length >= 3 Then
+    '                    Integer.TryParse(parts(2), nextID)
+    '                End If
+    '            End If
+
+    '            Dim existingIDs As IEnumerable(Of Integer) =
+    '                connection.Query(Of Integer)(
+    '                "SELECT CAST(PARSENAME(REPLACE(IR_NO, '/', '.'), 1) AS INT)
+    '                 FROM TBL_INTERNAL_MAIN
+    '                 WHERE COM_ID = @CompanyID
+    '                 AND IR_NO LIKE @Pattern", New With {
+    '                 .CompanyID = companyID,
+    '                 .Pattern = companyID & "/IR/%"
+    '                 })
+
+    '            Dim usedIDSet As New HashSet(Of Integer)(existingIDs)
+
+    '            While usedIDSet.Contains(nextID)
+    '                nextID += 1
+    '            End While
+
+    '            Return $"{companyID}/IR/{nextID}"
+    '        End Using
+    '    Catch ex As Exception
+    '        MsgBox(ex.Message)
+    '    End Try
+    'End Function
 
     Private Function IsDebtorsOutstandingHave(ByRef DaysLimit As Integer, ByRef IsShowMsg As Boolean) As Boolean
         Dim hasOverDue As Boolean = False

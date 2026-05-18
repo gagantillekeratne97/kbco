@@ -719,25 +719,83 @@ Public Class frmColorMeaterReading
         cmbSearchCol.SelectedIndex = 0
     End Sub
 
+    Private Function GetConnection() As SqlConnection
+        Dim conn As New SqlConnection(connectionString)
+
+        If conn.State = ConnectionState.Closed Then
+            conn.Open()
+        End If
+
+        Return conn
+    End Function
+
+    '// Rewriting frMeaterReading_Activated function 
     Private Sub frmMeaterReading_Activated(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Activated
         globalFunctions.globalButtonActivation(btnStatus(0), btnStatus(1), btnStatus(2), btnStatus(3), btnStatus(4), btnStatus(5))
-        errorEvent = " read user permission"
-        Try
-            connectionStaet()
-            strSQL = "SELECT USERDET_MENURIGHT FROM TBLU_USERDET WHERE USERDET_USERCODE='" & globalVariables.userSession & "' AND USERDET_MENUTAG='" & Me.Tag & "'AND USERDET_MENUTAG='" & Me.Tag & "' AND COM_ID ='" & globalVariables.selectedCompanyID & "'"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, sqlConnection)
-            Dim rights As String = Trim(dbConnections.sqlCommand.ExecuteScalar)
-            If InStr(1, rights, "C") Then canCreate = True
-            If InStr(1, rights, "D") Then canDelete = True
-            If InStr(1, rights, "M") Then canModify = True
-        Catch ex As Exception
-            inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-            MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3) " + PermissionReadingErrorMessgae, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-        Finally
-            connectionClose()
-        End Try
 
+        errorEvent = " read user permission"
+
+        Try
+            Using conn As SqlConnection = GetConnection()
+                Dim sql As String =
+                    "SELECT USERDET_MENURIGHT
+                    FROM TBLU_USERDET 
+                    WHERE USERDET_USERCODE = @UserCode
+                    AND USERDET_MENUTAG = @MenuTag
+                    AND COM_ID = @ComId"
+
+                Dim rights As String = conn.QueryFirstOrDefault(Of String)(
+                    sql, New With {
+                        .UserCode = globalVariables.userSession,
+                        .MenuTag = Me.Tag,
+                        .ComId = globalVariables.selectedCompanyID
+                    })
+
+                If Not String.IsNullOrEmpty(rights) Then
+                    rights = rights.Trim()
+
+                    If rights.Contains("C") Then canCreate = True
+                    If rights.Contains("D") Then canDelete = True
+                    If rights.Contains("M") Then canModify = True
+                End If
+
+            End Using
+        Catch ex As Exception
+            inputErrorLog(Me.Text,
+                   globalVariables.selectedCompanyID & "-" & Me.Tag & "X3",
+                   errorEvent,
+                   userSession,
+                   userName,
+                   DateTime.Now,
+                   ex.Message)
+
+            MessageBox.Show("Error code(" & globalVariables.selectedCompanyID & "-" & Me.Tag & "X3) " &
+                            PermissionReadingErrorMessgae,
+                            "Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning)
+        End Try
     End Sub
+
+    'Private Sub frmMeaterReading_Activated(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Activated
+    '    globalFunctions.globalButtonActivation(btnStatus(0), btnStatus(1), btnStatus(2), btnStatus(3), btnStatus(4), btnStatus(5))
+    '    errorEvent = " read user permission"
+    '    Try
+    '        connectionStaet()
+    '        strSQL = "SELECT USERDET_MENURIGHT FROM TBLU_USERDET WHERE USERDET_USERCODE='" & globalVariables.userSession & "' AND USERDET_MENUTAG='" & Me.Tag & "'AND USERDET_MENUTAG='" & Me.Tag & "' AND COM_ID ='" & globalVariables.selectedCompanyID & "'"
+    '        dbConnections.sqlCommand = New SqlCommand(strSQL, sqlConnection)
+    '        Dim rights As String = Trim(dbConnections.sqlCommand.ExecuteScalar)
+    '        If InStr(1, rights, "C") Then canCreate = True
+    '        If InStr(1, rights, "D") Then canDelete = True
+    '        If InStr(1, rights, "M") Then canModify = True
+    '    Catch ex As Exception
+    '        inputErrorLog(Me.Text, "" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3", errorEvent, userSession, userName, DateTime.Now, ex.Message)
+    '        MessageBox.Show("Error code(" & globalVariables.selectedCompanyID + "-" + Me.Tag & "X3) " + PermissionReadingErrorMessgae, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+    '    Finally
+    '        connectionClose()
+    '    End Try
+
+    'End Sub
     '===================================================================================================================
     '''''''''''''''''''''''''''''''''''all functions of the form .......................................................
     '===================================================================================================================
@@ -2721,7 +2779,6 @@ Public Class frmColorMeaterReading
         End Try
     End Sub
 
-
     Private Function GetSelectedVATP() As Double
         GetSelectedVATP = globalVariables.VAT
 
@@ -3276,9 +3333,6 @@ Public Class frmColorMeaterReading
 
                     End If
                     PkSize = Nothing
-
-
-
                 Catch ex As Exception
                     MessageBox.Show(ex.Message, "Alert", MessageBoxButtons.OK, MessageBoxIcon.Error)
                 End Try

@@ -17,7 +17,7 @@
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
     <IsWebBootstrapper>false</IsWebBootstrapper>
-    <PublishUrl>E:\Published Exe\KBCO\</PublishUrl>
+    <PublishUrl>C:\Users\gagangcp\Desktop\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
     <UpdateEnabled>false</UpdateEnabled>
@@ -85,7 +85,7 @@
     <ManifestKeyFile>Gestetner_1_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <GenerateManifests>false</GenerateManifests>
+    <GenerateManifests>true</GenerateManifests>
   </PropertyGroup>
   <PropertyGroup>
     <TargetZone>LocalIntranet</TargetZone>
@@ -1029,6 +1029,8 @@
     <Resource Include="Images\BackgroundImages\K-Bridge Outsource.png" />
     <Resource Include="Images\BackgroundImages\background.jpg" />
     <Resource Include="Images\BackgroundImages\videoblocks-bg-=.png" />
+    <Content Include="bin\Debug\DatabaseConnectionCode.txt" />
+    <Content Include="bin\Debug\DatabaseConnectionCode02.txt" />
     <Content Include="KB1.ico" />
     <Content Include="KBO 2.ico" />
     <None Include="Resources\Image1.png" />

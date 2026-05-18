@@ -58,12 +58,28 @@ Public Class frmMDImain
         isFormFocused = False
     End Sub
 
+    Public Function CreateOpenConnection() As SqlConnection
+        Dim conn As New SqlConnection(dbConnections.sqlConnection.ConnectionString)
+
+        Try
+            If conn.State <> ConnectionState.Open Then
+                conn.Open()
+            End If
+        Catch ex As SqlException
+            ' If connection fails, recreate once
+            conn.Dispose()
+            conn = New SqlConnection(dbConnections.sqlConnection.ConnectionString)
+            conn.Open()
+        End Try
+
+        Return conn
+    End Function
+
+
     Private Sub frmMDImain_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         frmLoginWinForm.Dispose()
         ProcessDirectory()
         ErrorLogFileCreate()
-
-
 
         globalFunctions.globalButtonActivation(False, False, False, False, False, False)
         ' GetLogUsername()
@@ -94,22 +110,22 @@ Public Class frmMDImain
 
 
 
-        If globalVariables.AutomaticSwUpdateBool = True Then
-            If CheckSoftwareUpdates() Then
-                If SaveSoftwareUpdate() Then
-                    BackupOldExe()
-                    connectionClose()
-                    dbConnections.sqlConnection.Close()
-                    dbConnections.sqlConnection.Dispose()
-                    dbConnections.sqlAdapter.Dispose()
-                    dbConnections.sqlCommand.Dispose()
-                    frmLoginWinForm.Dispose()
-                    Process.Start(My.Application.Info.DirectoryPath + "\KBSoftwareUpdate.exe")
+        'If globalVariables.AutomaticSwUpdateBool = True Then
+        '    If CheckSoftwareUpdates() Then
+        '        If SaveSoftwareUpdate() Then
+        '            BackupOldExe()
+        '            connectionClose()
+        '            dbConnections.sqlConnection.Close()
+        '            dbConnections.sqlConnection.Dispose()
+        '            dbConnections.sqlAdapter.Dispose()
+        '            dbConnections.sqlCommand.Dispose()
+        '            frmLoginWinForm.Dispose()
+        '            Process.Start(My.Application.Info.DirectoryPath + "\KBSoftwareUpdate.exe")
 
-                End If
+        '        End If
 
-            End If
-        End If
+        '    End If
+        'End If
 
 
 
@@ -583,10 +599,10 @@ Public Class frmMDImain
         End If
 
         If globalVariables.AutomaticSwUpdateBool = True Then
-            If CheckSoftwareUpdates() Then
+            'If CheckSoftwareUpdates() Then
 
 
-            End If
+            'End If
         End If
 
     End Sub
@@ -625,35 +641,35 @@ Public Class frmMDImain
         End Try
     End Sub
 
-    Private Function CheckSoftwareUpdates() As Boolean
-        Dim Count As Integer
-        connectionStaet()
-        errorEvent = "Check Software update"
-        Try
-            strSQL = "SELECT COUNT( [USERHED_USERCODE]) FROM [" & selectedDatabaseName & "].[dbo].[TBLU_USERHED] WHERE [USERHED_USERPC] = '" & System.Net.Dns.GetHostName & "' and [USERHED_SWUPDATE] = 1"
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            Count = dbConnections.sqlCommand.ExecuteScalar
+    'Private Function CheckSoftwareUpdates() As Boolean
+    '    Dim Count As Integer
+    '    connectionStaet()
+    '    errorEvent = "Check Software update"
+    '    Try
+    '        strSQL = "SELECT COUNT( [USERHED_USERCODE]) FROM [" & selectedDatabaseName & "].[dbo].[TBLU_USERHED] WHERE [USERHED_USERPC] = '" & System.Net.Dns.GetHostName & "' and [USERHED_SWUPDATE] = 1"
+    '        dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+    '        Count = dbConnections.sqlCommand.ExecuteScalar
 
-            If Count = 0 Then
-                tsbtnUpdate.Enabled = False
-                tslblNewUpdate.Visible = False
-                CheckSoftwareUpdates = False
-            Else
-                tsbtnUpdate.Enabled = True
-                tslblNewUpdate.Visible = True
-                CheckSoftwareUpdates = True
-                tsbtnUpdate.BackColor = Color.Red
-            End If
-        Catch ex As Exception
+    '        If Count = 0 Then
+    '            tsbtnUpdate.Enabled = False
+    '            tslblNewUpdate.Visible = False
+    '            CheckSoftwareUpdates = False
+    '        Else
+    '            tsbtnUpdate.Enabled = True
+    '            tslblNewUpdate.Visible = True
+    '            CheckSoftwareUpdates = True
+    '            tsbtnUpdate.BackColor = Color.Red
+    '        End If
+    '    Catch ex As Exception
 
-            MessageBox.Show("Error code(" & Me.Tag & "X5) " + GenaralErrorMessage + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-            inputErrorLog(Me.Text, "" & Me.Tag & "X5", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-        Finally
-            dbConnections.dReader.Close()
-            connectionClose()
-        End Try
-        Return CheckSoftwareUpdates
-    End Function
+    '        MessageBox.Show("Error code(" & Me.Tag & "X5) " + GenaralErrorMessage + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+    '        inputErrorLog(Me.Text, "" & Me.Tag & "X5", errorEvent, userSession, userName, DateTime.Now, ex.Message)
+    '    Finally
+    '        dbConnections.dReader.Close()
+    '        connectionClose()
+    '    End Try
+    '    Return CheckSoftwareUpdates
+    'End Function
 
     Private Function SaveSoftwareUpdate() As Boolean
         errorEvent = "Save Software Update"

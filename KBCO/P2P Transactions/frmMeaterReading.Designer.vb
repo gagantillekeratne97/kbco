@@ -41,9 +41,6 @@ Partial Class frmMeaterReading
         Me.Label1 = New System.Windows.Forms.Label()
         Me.txtCustomerID = New System.Windows.Forms.TextBox()
         Me.dgAgreement = New System.Windows.Forms.DataGridView()
-        Me.AG_ID = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.AG_NAME = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.AG_ST = New System.Windows.Forms.DataGridViewImageColumn()
         Me.txtLocation3 = New System.Windows.Forms.TextBox()
         Me.txtLocation2 = New System.Windows.Forms.TextBox()
         Me.Label10 = New System.Windows.Forms.Label()
@@ -135,6 +132,10 @@ Partial Class frmMeaterReading
         Me.cmbSearchCol = New System.Windows.Forms.ComboBox()
         Me.btnSearch = New System.Windows.Forms.Button()
         Me.bgworkerSNSerch = New System.ComponentModel.BackgroundWorker()
+        Me.btnUploadExcel = New System.Windows.Forms.Button()
+        Me.AG_ID = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.AG_NAME = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.AG_ST = New System.Windows.Forms.DataGridViewImageColumn()
         CType(Me.dgAgreement, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.dgMR, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.ErrorProvider1, System.ComponentModel.ISupportInitialize).BeginInit()
@@ -230,31 +231,6 @@ Partial Class frmMeaterReading
         Me.dgAgreement.RowHeadersWidthSizeMode = System.Windows.Forms.DataGridViewRowHeadersWidthSizeMode.DisableResizing
         Me.dgAgreement.Size = New System.Drawing.Size(239, 462)
         Me.dgAgreement.TabIndex = 19
-        '
-        'AG_ID
-        '
-        Me.AG_ID.HeaderText = "Agreement"
-        Me.AG_ID.MinimumWidth = 6
-        Me.AG_ID.Name = "AG_ID"
-        Me.AG_ID.ReadOnly = True
-        Me.AG_ID.Width = 125
-        '
-        'AG_NAME
-        '
-        Me.AG_NAME.HeaderText = "Agreement Name"
-        Me.AG_NAME.MinimumWidth = 6
-        Me.AG_NAME.Name = "AG_NAME"
-        Me.AG_NAME.ReadOnly = True
-        Me.AG_NAME.Width = 125
-        '
-        'AG_ST
-        '
-        Me.AG_ST.HeaderText = "ST"
-        Me.AG_ST.MinimumWidth = 6
-        Me.AG_ST.Name = "AG_ST"
-        Me.AG_ST.ReadOnly = True
-        Me.AG_ST.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Automatic
-        Me.AG_ST.Width = 37
         '
         'txtLocation3
         '
@@ -920,7 +896,7 @@ Partial Class frmMeaterReading
         'Label14
         '
         Me.Label14.AutoSize = True
-        Me.Label14.Location = New System.Drawing.Point(940, 74)
+        Me.Label14.Location = New System.Drawing.Point(965, 66)
         Me.Label14.Margin = New System.Windows.Forms.Padding(4, 0, 4, 0)
         Me.Label14.Name = "Label14"
         Me.Label14.Size = New System.Drawing.Size(71, 16)
@@ -1205,12 +1181,50 @@ Partial Class frmMeaterReading
         'bgworkerSNSerch
         '
         '
+        'btnUploadExcel
+        '
+        Me.btnUploadExcel.BackColor = System.Drawing.Color.LightYellow
+        Me.btnUploadExcel.Location = New System.Drawing.Point(855, 66)
+        Me.btnUploadExcel.Margin = New System.Windows.Forms.Padding(4)
+        Me.btnUploadExcel.Name = "btnUploadExcel"
+        Me.btnUploadExcel.Size = New System.Drawing.Size(100, 37)
+        Me.btnUploadExcel.TabIndex = 667
+        Me.btnUploadExcel.Text = "Meter Upload"
+        Me.btnUploadExcel.UseVisualStyleBackColor = False
+        '
+        'AG_ID
+        '
+        Me.AG_ID.HeaderText = "Agreement"
+        Me.AG_ID.MinimumWidth = 6
+        Me.AG_ID.Name = "AG_ID"
+        Me.AG_ID.ReadOnly = True
+        Me.AG_ID.Visible = False
+        Me.AG_ID.Width = 125
+        '
+        'AG_NAME
+        '
+        Me.AG_NAME.HeaderText = "Agreement Name"
+        Me.AG_NAME.MinimumWidth = 6
+        Me.AG_NAME.Name = "AG_NAME"
+        Me.AG_NAME.ReadOnly = True
+        Me.AG_NAME.Width = 125
+        '
+        'AG_ST
+        '
+        Me.AG_ST.HeaderText = "ST"
+        Me.AG_ST.MinimumWidth = 6
+        Me.AG_ST.Name = "AG_ST"
+        Me.AG_ST.ReadOnly = True
+        Me.AG_ST.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.Automatic
+        Me.AG_ST.Width = 37
+        '
         'frmMeaterReading
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(8.0!, 16.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.BackColor = System.Drawing.Color.Silver
         Me.ClientSize = New System.Drawing.Size(1641, 700)
+        Me.Controls.Add(Me.btnUploadExcel)
         Me.Controls.Add(Me.btnSearch)
         Me.Controls.Add(Me.cmbSearchCol)
         Me.Controls.Add(Me.txtSearchtext)
@@ -1391,6 +1405,7 @@ Partial Class frmMeaterReading
     Friend WithEvents txtSearchtext As System.Windows.Forms.TextBox
     Friend WithEvents Label30 As System.Windows.Forms.Label
     Friend WithEvents bgworkerSNSerch As System.ComponentModel.BackgroundWorker
+    Friend WithEvents btnUploadExcel As Button
     Friend WithEvents AG_ID As DataGridViewTextBoxColumn
     Friend WithEvents AG_NAME As DataGridViewTextBoxColumn
     Friend WithEvents AG_ST As DataGridViewImageColumn

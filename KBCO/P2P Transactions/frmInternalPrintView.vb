@@ -592,6 +592,9 @@ Public Class frmInternalPrintView
             BELEETA_UPLOADED_DATE = '{DateTime.Now.Date}', UPLOADED_BY = '{globalVariables.userName}', 
             IS_BELEETA_UPLOADED = '1'
             WHERE     (COM_ID = '{globalVariables.selectedCompanyID}') AND (IR_NO = '{Trim(txtIRNo.Text)}')"
+            MsgBox(strSQL)
+            Dim connectionString As String = dbConnections.sqlConnection.ConnectionString
+            MsgBox(connectionString)
             dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
             dbConnections.sqlCommand.ExecuteNonQuery()
             MsgBox("Successfully Updated.")

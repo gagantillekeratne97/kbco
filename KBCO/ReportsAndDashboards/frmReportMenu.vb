@@ -1447,6 +1447,8 @@ Public Class frmReportMenu
 
             cryRpt.Load(path)
 
+            cryRpt.RecordSelectionFormula = "{TBL_MACHINE_RETURN_NEW.COM_ID} " + "='" + globalVariables.selectedCompanyID + "'"
+
             With crConnectionInfo
                 .ServerName = selectedServerName
                 .DatabaseName = selectedDatabaseName
@@ -1586,10 +1588,8 @@ Public Class frmReportMenu
             With crConnectionInfo
                 .ServerName = selectedServerName
                 .DatabaseName = selectedDatabaseName
-                .UserID = "gestetner"
-                .Password = "gocl248"
-                '.UserID = "db_ab8b61_kbco_admin"
-                '.Password = "Ssg789.541351"
+                .UserID = "db_ab8b61_kbco_admin"
+                .Password = "Ssg789.541351"
             End With
 
             crTables = cryRpt.Database.Tables

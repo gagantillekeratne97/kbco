@@ -7,6 +7,8 @@ Imports System.Net
 Imports System.IO
 Imports System.Windows.Media
 Imports System.Web
+Imports System.Configuration
+Imports Dapper
 
 Public Class frmInternalDospatchQ
 
@@ -23,6 +25,10 @@ Public Class frmInternalDospatchQ
     Const WMCLOSE As String = "WmClose"
     Private _lastFormSize As Integer
     Private SavedIR_NO As String
+
+    '// Database connection String from config file 
+    Dim connectionString As String = ConfigurationManager.ConnectionStrings("DefaultConnection").ConnectionString
+
     '//Active form perform btn click case
     Public Sub Preform_btn_click(ByVal strString As String)
         Select Case strString
@@ -189,46 +195,124 @@ Public Class frmInternalDospatchQ
         Dim rowCount As Integer = 0
         errorEvent = "Add to grid()"
         dgApprovedInternalQ.Rows.Clear()
+
         Try
-            connectionStaet()
+            ' Build the main query
+            Dim mainSql As String = "
+            SELECT 
+                TBL_INTERNAL_MAIN.IR_NO,
+                TBL_INTERNAL_MAIN.BELEETA_REFERENCE_NO,
+                TBL_INTERNAL_MAIN.IR_DATE,
+                TBL_INTERNAL_MAIN.SERIAL_NO,
+                TBL_INTERNAL_MAIN.PN_NO,
+                TBL_INTERNAL_MAIN.CUS_LOC,
+                MTBL_CUSTOMER_MASTER.CUS_NAME,
+                TBL_INTERNAL_MAIN.IR_STATE
+            FROM TBL_INTERNAL_MAIN
+            INNER JOIN MTBL_CUSTOMER_MASTER 
+                ON TBL_INTERNAL_MAIN.COM_ID = MTBL_CUSTOMER_MASTER.COM_ID 
+                AND TBL_INTERNAL_MAIN.CUS_CODE = MTBL_CUSTOMER_MASTER.CUS_ID
+            WHERE TBL_INTERNAL_MAIN.COM_ID = @CompanyID
+              AND TBL_INTERNAL_MAIN.IR_STATE IN ('UPLOADED TO BELEETA')"
 
-            'changes made as at 04-07-2025
-            'changes made Changing to UPLOADED TO BELEETA 
-            'changes made by Gagan Tillekeratene.
+            Dim aodColumn As String
+            Select Case globalVariables.selectedCompanyID
+                Case "003"
+                    aodColumn = "PN_DESC"
+                Case "001"
+                    aodColumn = "PN"
+                Case Else
+                    aodColumn = "PN"
+            End Select
 
-            strSQL = "SELECT     TBL_INTERNAL_MAIN.IR_NO,TBL_INTERNAL_MAIN.BELEETA_REFERENCE_NO, TBL_INTERNAL_MAIN.IR_DATE, TBL_INTERNAL_MAIN.SERIAL_NO, TBL_INTERNAL_MAIN.PN_NO, TBL_INTERNAL_MAIN.CUS_LOC,   MTBL_CUSTOMER_MASTER.CUS_NAME,TBL_INTERNAL_MAIN.IR_STATE  FROM  TBL_INTERNAL_MAIN INNER JOIN  MTBL_CUSTOMER_MASTER ON TBL_INTERNAL_MAIN.COM_ID = MTBL_CUSTOMER_MASTER.COM_ID AND TBL_INTERNAL_MAIN.CUS_CODE = MTBL_CUSTOMER_MASTER.CUS_ID WHERE     (TBL_INTERNAL_MAIN.COM_ID ='" & Trim(globalVariables.selectedCompanyID) & "') AND (TBL_INTERNAL_MAIN.IR_STATE IN ('UPLOADED TO BELEETA'))"
-            dbConnections.sqlCommand.CommandText = strSQL
-            dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
-            Dim connectionString As String = dbConnections.cloudConnectionString
-            Dim sqlConnection As New SqlConnection(connectionString)
-            sqlConnection.Open()
-            While dbConnections.dReader.Read
-                Dim something As String = ""
-                If globalVariables.selectedCompanyID = "003" Then
-                    something = $"SELECT CASE WHEN EXISTS(SELECT 1 FROM TBL_INTERNAL_ITEMS WHERE IR_NO = '{dbConnections.dReader.Item("IR_NO")}' AND PN_DESC LIKE '%AOD%') THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsExists"
-                ElseIf globalVariables.selectedCompanyID = "001" Then
-                    something = $"SELECT CASE WHEN EXISTS(SELECT 1 FROM TBL_INTERNAL_ITEMS WHERE IR_NO = '{dbConnections.dReader.Item("IR_NO")}' AND PN LIKE '%AOD%') THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsExists"
-                End If
-                Dim sqlCommand As New SqlCommand(something, sqlConnection)
-                Dim IsExists As Boolean = CBool(sqlCommand.ExecuteScalar)
-                If IsExists = False Then
-                    populatreDatagrid(dbConnections.dReader.Item("IR_NO"), dbConnections.dReader.Item("BELEETA_REFERENCE_NO"), CDate(dbConnections.dReader.Item("IR_DATE")).ToShortDateString, dbConnections.dReader.Item("PN_NO"), dbConnections.dReader.Item("SERIAL_NO"), dbConnections.dReader.Item("CUS_NAME"), dbConnections.dReader.Item("CUS_LOC"), dbConnections.dReader.Item("IR_STATE"))
-                    rowCount = rowCount + 1
-                ElseIf IsExists = True Then
-                    Console.WriteLine(IsExists)
-                End If
-            End While
-            sqlConnection.Close()
+            Dim aodCheckSql As String = $"
+            SELECT CAST(
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM TBL_INTERNAL_ITEMS
+                    WHERE IR_NO = @IrNo
+                      AND {aodColumn} LIKE '%AOD%'
+                ) THEN 1 ELSE 0 END 
+            AS BIT)"
+
+            Using connection As New SqlConnection(connectionString)
+                connection.Open()
+
+                Dim records = connection.Query(mainSql, New With {.CompanyID = globalVariables.selectedCompanyID})
+                For Each record In records
+                    Dim irNo As String = record.IR_NO
+
+                    ' Only run AOD check if company is 001 or 003; skip rows with AOD items
+                    Dim isAodExists As Boolean = False
+                    If globalVariables.selectedCompanyID = "003" OrElse globalVariables.selectedCompanyID = "001" Then
+                        isAodExists = connection.ExecuteScalar(Of Boolean)(aodCheckSql, New With {.IrNo = irNo})
+                    End If
+
+                    If Not isAodExists Then
+                        populatreDatagrid(
+                            irNo,
+                            record.BELEETA_REFERENCE_NO,
+                            CDate(record.IR_DATE).ToShortDateString(),
+                            record.PN_NO,
+                            record.SERIAL_NO,
+                            record.CUS_NAME,
+                            record.CUS_LOC,
+                            record.IR_STATE
+                        )
+                        rowCount += 1
+                    Else
+                        Console.WriteLine($"Skipping IR_NO {irNo} — AOD item exists.")
+                    End If
+                Next
+            End Using
         Catch ex As Exception
-            dbConnections.dReader.Close()
-            inputErrorLog(Me.Text, "" & Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
-            MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-
-        Finally
-            dbConnections.dReader.Close()
-            connectionClose()
+            MessageBox.Show(ex.Message, "Something Went Wrong", MessageBoxButtons.OK, MessageBoxIcon.Error)
         End Try
     End Sub
+
+    'Private Sub AddtoGrid()
+    '    Dim rowCount As Integer = 0
+    '    errorEvent = "Add to grid()"
+    '    dgApprovedInternalQ.Rows.Clear()
+    '    Try
+    '        connectionStaet()
+
+    '        'changes made as at 04-07-2025
+    '        'changes made Changing to UPLOADED TO BELEETA 
+    '        'changes made by Gagan Tillekeratene.
+
+    '        strSQL = "SELECT     TBL_INTERNAL_MAIN.IR_NO,TBL_INTERNAL_MAIN.BELEETA_REFERENCE_NO, TBL_INTERNAL_MAIN.IR_DATE, TBL_INTERNAL_MAIN.SERIAL_NO, TBL_INTERNAL_MAIN.PN_NO, TBL_INTERNAL_MAIN.CUS_LOC,   MTBL_CUSTOMER_MASTER.CUS_NAME,TBL_INTERNAL_MAIN.IR_STATE  FROM  TBL_INTERNAL_MAIN INNER JOIN  MTBL_CUSTOMER_MASTER ON TBL_INTERNAL_MAIN.COM_ID = MTBL_CUSTOMER_MASTER.COM_ID AND TBL_INTERNAL_MAIN.CUS_CODE = MTBL_CUSTOMER_MASTER.CUS_ID WHERE     (TBL_INTERNAL_MAIN.COM_ID ='" & Trim(globalVariables.selectedCompanyID) & "') AND (TBL_INTERNAL_MAIN.IR_STATE IN ('UPLOADED TO BELEETA'))"
+    '        dbConnections.sqlCommand.CommandText = strSQL
+    '        dbConnections.dReader = dbConnections.sqlCommand.ExecuteReader
+    '        Dim connectionString As String = dbConnections.cloudConnectionString
+    '        Dim sqlConnection As New SqlConnection(connectionString)
+    '        sqlConnection.Open()
+    '        While dbConnections.dReader.Read
+    '            Dim something As String = ""
+    '            If globalVariables.selectedCompanyID = "003" Then
+    '                something = $"SELECT CASE WHEN EXISTS(SELECT 1 FROM TBL_INTERNAL_ITEMS WHERE IR_NO = '{dbConnections.dReader.Item("IR_NO")}' AND PN_DESC LIKE '%AOD%') THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsExists"
+    '            ElseIf globalVariables.selectedCompanyID = "001" Then
+    '                something = $"SELECT CASE WHEN EXISTS(SELECT 1 FROM TBL_INTERNAL_ITEMS WHERE IR_NO = '{dbConnections.dReader.Item("IR_NO")}' AND PN LIKE '%AOD%') THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsExists"
+    '            End If
+    '            Dim sqlCommand As New SqlCommand(something, sqlConnection)
+    '            Dim IsExists As Boolean = CBool(sqlCommand.ExecuteScalar)
+    '            If IsExists = False Then
+    '                populatreDatagrid(dbConnections.dReader.Item("IR_NO"), dbConnections.dReader.Item("BELEETA_REFERENCE_NO"), CDate(dbConnections.dReader.Item("IR_DATE")).ToShortDateString, dbConnections.dReader.Item("PN_NO"), dbConnections.dReader.Item("SERIAL_NO"), dbConnections.dReader.Item("CUS_NAME"), dbConnections.dReader.Item("CUS_LOC"), dbConnections.dReader.Item("IR_STATE"))
+    '                rowCount = rowCount + 1
+    '            ElseIf IsExists = True Then
+    '                Console.WriteLine(IsExists)
+    '            End If
+    '        End While
+    '        sqlConnection.Close()
+    '    Catch ex As Exception
+    '        dbConnections.dReader.Close()
+    '        inputErrorLog(Me.Text, "" & Me.Tag & "X1", errorEvent, userSession, userName, DateTime.Now, ex.Message)
+    '        MessageBox.Show("Error code(" & Me.Tag & "X1) " + GenaralErrorMessage, "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+
+    '    Finally
+    '        dbConnections.dReader.Close()
+    '        connectionClose()
+    '    End Try
+    'End Sub
 
 
 #End Region

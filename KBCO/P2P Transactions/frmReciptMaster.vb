@@ -1272,10 +1272,18 @@ Public Class frmReciptMaster
                     COM_ID
                  FROM TBL_INVOICE_MASTER
                  WHERE COM_ID = @COM_ID 
-                   AND CUS_ID = @CUS_ID 
-                   AND INV_STATUS_T IS NULL 
-                   AND (RECIPT_ID IS NULL OR FULL_PAID = 0)
-                 ORDER BY INV_AUTO_NUM",
+                    AND CUS_ID = @CUS_ID 
+                    AND (
+                    INV_STATUS_T IS NULL 
+                    OR INV_STATUS_T = 'PARTLY PAID'
+                    )
+                    AND (
+                    RECIPT_ID IS NULL 
+                    OR FULL_PAID = 0
+                    OR FULL_PAID IS NULL 
+                    )
+                ORDER BY INV_AUTO_NUM;
+                ",
                     New With {.COM_ID = comId, .CUS_ID = cusId})
 
                 Dim seenInvoices As New HashSet(Of String)(StringComparer.OrdinalIgnoreCase)
