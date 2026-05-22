@@ -587,19 +587,49 @@ Public Class frmInternalPrintView
 
     Private Sub btnUploadToBeleeta_Click(sender As Object, e As EventArgs) Handles btnUploadToBeleeta.Click
         Try
-            strSQL = $"UPDATE    TBL_INTERNAL_MAIN SET 
-            IR_STATE = 'UPLOADED TO BELEETA', BELEETA_REFERENCE_NO = '{Trim(txtBeleetaRefNo.Text)}', 
-            BELEETA_UPLOADED_DATE = '{DateTime.Now.Date}', UPLOADED_BY = '{globalVariables.userName}', 
-            IS_BELEETA_UPLOADED = '1'
-            WHERE     (COM_ID = '{globalVariables.selectedCompanyID}') AND (IR_NO = '{Trim(txtIRNo.Text)}')"
-            MsgBox(strSQL)
-            Dim connectionString As String = dbConnections.sqlConnection.ConnectionString
-            MsgBox(connectionString)
-            dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
-            dbConnections.sqlCommand.ExecuteNonQuery()
+            '//Beleeta upload function changed to dapper.
+            Dim strSQL As String = "
+        UPDATE TBL_INTERNAL_MAIN 
+        SET 
+            IR_STATE = @IR_STATE,
+            BELEETA_REFERENCE_NO = @BELEETA_REFERENCE_NO,
+            BELEETA_UPLOADED_DATE = @BELEETA_UPLOADED_DATE,
+            UPLOADED_BY = @UPLOADED_BY,
+            IS_BELEETA_UPLOADED = @IS_BELEETA_UPLOADED
+        WHERE 
+            COM_ID = @COM_ID 
+            AND IR_NO = @IR_NO"
+            Dim parameters = New With {
+                .IR_STATE = "UPLOADED TO BELEETA",
+                .BELEETA_REFERENCE_NO = Trim(txtBeleetaRefNo.Text),
+                .BELEETA_UPLOADED_DATE = DateTime.Now.Date,
+                .UPLOADED_BY = globalVariables.userName,
+                .IS_BELEETA_UPLOADED = 1,
+                .COM_ID = globalVariables.selectedCompanyID,
+                .IR_NO = Trim(txtIRNo.Text)
+            }
+            Using conn As New SqlConnection(connectionString)
+                conn.Open()
+                conn.Execute(strSQL, parameters)
+            End Using
+
             MsgBox("Successfully Updated.")
+
         Catch ex As Exception
-            MsgBox(ex.InnerException.Message)
+            MsgBox(ex.Message)
         End Try
+        'Try
+        '    strSQL = $"UPDATE    TBL_INTERNAL_MAIN SET 
+        '    IR_STATE = 'UPLOADED TO BELEETA', BELEETA_REFERENCE_NO = '{Trim(txtBeleetaRefNo.Text)}', 
+        '    BELEETA_UPLOADED_DATE = '{DateTime.Now.Date}', UPLOADED_BY = '{globalVariables.userName}', 
+        '    IS_BELEETA_UPLOADED = '1'
+        '    WHERE     (COM_ID = '{globalVariables.selectedCompanyID}') AND (IR_NO = '{Trim(txtIRNo.Text)}')"
+        '    Dim connectionString As String = dbConnections.sqlConnection.ConnectionString
+        '    dbConnections.sqlCommand = New SqlCommand(strSQL, dbConnections.sqlConnection)
+        '    dbConnections.sqlCommand.ExecuteNonQuery()
+        '    MsgBox("Successfully Updated.")
+        'Catch ex As Exception
+        '    MsgBox(ex.InnerException.Message)
+        'End Try
     End Sub
 End Class
